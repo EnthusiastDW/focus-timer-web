@@ -1,0 +1,20 @@
+{
+  "name": "Focus Timer - 番茄钟",
+  "short_name": "Focus Timer",
+  "description": "专注番茄钟计时器，帮助您提高工作效率",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "lang": "zh-CN"
+}

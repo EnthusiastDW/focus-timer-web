@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="tomatoGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#27ae60"/>
+      <stop offset="100%" stop-color="#1e8449"/>
+    </linearGradient>
+  </defs>
+  <!-- Tomato body -->
+  <ellipse cx="32" cy="36" rx="24" ry="22" fill="url(#tomatoGrad)"/>
+  <!-- Tomato highlight -->
+  <ellipse cx="24" cy="28" rx="8" ry="10" fill="#2563eb" opacity="0.5"/>
+  <ellipse cx="22" cy="26" rx="4" ry="5" fill="#fff" opacity="0.15"/>
+  <!-- Stem -->
+  <rect x="30" y="10" width="4" height="8" rx="2" fill="#6d4c2a"/>
+  <!-- Leaves -->
+  <path d="M32 14 C28 8 20 6 18 10 C20 12 28 12 32 14Z" fill="url(#leafGrad)"/>
+  <path d="M32 14 C36 8 44 6 46 10 C44 12 36 12 32 14Z" fill="url(#leafGrad)"/>
+  <path d="M32 14 C30 6 24 4 22 7 C25 9 30 10 32 14Z" fill="#2ecc71" opacity="0.8"/>
+  <path d="M32 14 C34 6 40 4 42 7 C39 9 34 10 32 14Z" fill="#2ecc71" opacity="0.8"/>
+  <!-- Clock face -->
+  <circle cx="32" cy="36" r="14" fill="#fff" opacity="0.92"/>
+  <circle cx="32" cy="36" r="13" fill="none" stroke="#2563eb" stroke-width="1.5"/>
+  <!-- Hour markers -->
+  <line x1="32" y1="24" x2="32" y2="26" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="32" y1="46" x2="32" y2="48" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="20" y1="36" x2="22" y2="36" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="42" y1="36" x2="44" y2="36" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Clock hands - showing 25 minutes (Pomodoro time) -->
+  <line x1="32" y1="36" x2="32" y2="27" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/>
+  <line x1="32" y1="36" x2="39" y2="33" stroke="#7c3aed" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Center dot -->
+  <circle cx="32" cy="36" r="1.5" fill="#7c3aed"/>
+</svg>
