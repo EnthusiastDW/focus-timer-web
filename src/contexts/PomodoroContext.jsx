@@ -175,7 +175,8 @@ export function PomodoroProvider({ children }) {
         
         const nextItem = limitedSchedule[nextIndex];
         if (nextItem.phase !== 'focus') {
-          playSound(settings.breakSound);
+          // 专注结束，进入休息
+          playSound(settings.focusSound);
           playNotification('专注完成！', nextItem.phase === 'longBreak' ? '开始长休息' : '开始短休息', settings.notifications);
           lastPhaseRef.current = `${nextItem.phase}-${nextItem.round}-${nextItem.duration}`;
           return {
@@ -187,7 +188,8 @@ export function PomodoroProvider({ children }) {
             scheduleIndex: nextIndex,
           };
         } else {
-          playSound(settings.focusSound);
+          // 休息结束，进入专注
+          playSound(settings.breakSound);
           playNotification('休息结束！', `开始第 ${nextItem.round} 轮专注`, settings.notifications);
           lastPhaseRef.current = `${nextItem.phase}-${nextItem.round}-${nextItem.duration}`;
           return {
@@ -204,11 +206,12 @@ export function PomodoroProvider({ children }) {
       const { phase, currentRound } = prev;
       
       if (phase === 'focus') {
+        // 专注结束，进入休息
         const isLongBreak = currentRound % settings.pomodoroRounds === 0;
         const nextPhase = isLongBreak ? 'longBreak' : 'shortBreak';
         const nextTime = isLongBreak ? settings.longBreakTime : settings.shortBreakTime;
         
-        playSound(settings.breakSound);
+        playSound(settings.focusSound);
         playNotification('专注完成！', isLongBreak ? '开始长休息' : '开始短休息', settings.notifications);
         lastPhaseRef.current = `${nextPhase}-${currentRound}-${nextTime}`;
         
@@ -219,9 +222,10 @@ export function PomodoroProvider({ children }) {
           timeRemaining: nextTime,
         };
       } else {
+        // 休息结束，进入专注
         const nextRound = prev.currentRound + 1;
         
-        playSound(settings.focusSound);
+        playSound(settings.breakSound);
         playNotification('休息结束！', `开始第 ${nextRound} 轮专注`, settings.notifications);
         lastPhaseRef.current = `focus-${nextRound}-${settings.focusTime}`;
         
@@ -367,14 +371,26 @@ export function PomodoroProvider({ children }) {
     setTimerState(prev => ({ ...prev, taskId }));
   }, []);
 
+  // 判断是否为时间相关的设置
+  const isTimeSetting = (key) => {
+    return ['focusTime', 'shortBreakTime', 'longBreakTime', 'pomodoroRounds', 'limitedTime', 'mode'].includes(key);
+  };
+
   const updateSettings = useCallback((newSettings) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
-      setTimerState(current => ({
-        ...current,
-        timeRemaining: updated.focusTime,
-        scheduleIndex: 0,
-      }));
+      
+      // 只有当时间相关设置改变时才重置计时器
+      const hasTimeSetting = Object.keys(newSettings).some(isTimeSetting);
+      
+      if (hasTimeSetting) {
+        setTimerState(current => ({
+          ...current,
+          timeRemaining: updated.focusTime,
+          scheduleIndex: 0,
+        }));
+      }
+      
       return updated;
     });
   }, []);

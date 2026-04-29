@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   CssBaseline,
@@ -13,6 +13,7 @@ import {
   ListItemText,
   alpha,
   Chip,
+  Tooltip,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
@@ -23,6 +24,8 @@ import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined';
 import CoffeeOutlinedIcon from '@mui/icons-material/CoffeeOutlined';
 import SelfImprovementOutlinedIcon from '@mui/icons-material/SelfImprovementOutlined';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import NotificationsOffIcon from '@mui/icons-material/NotificationsOff';
 import PomodoroTimer from './components/PomodoroTimer';
 import TaskManagement from './components/TaskManagement';
 import StatisticsPage from './components/StatisticsPage';
@@ -64,6 +67,39 @@ function TimerIndicator() {
       size="small"
       sx={{ mr: { xs: 0, sm: 2 } }}
     />
+  );
+}
+
+function NotificationToggle() {
+  const { settings, updateSettings } = usePomodoroContext();
+  
+  const handleToggle = () => {
+    const newNotifications = !settings.notifications;
+    updateSettings({ notifications: newNotifications });
+    
+    // 如果开启通知且未授权，请求权限
+    if (newNotifications && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  };
+  
+  return (
+    <Tooltip title={settings.notifications ? '关闭桌面通知' : '开启桌面通知'}>
+      <IconButton
+        onClick={handleToggle}
+        sx={{ 
+          color: settings.notifications ? 'primary.main' : 'text.secondary',
+          mr: 0.5,
+          '&:hover': {
+            bgcolor: alpha('#2563eb', 0.1),
+          }
+        }}
+        aria-label="桌面通知开关"
+        size="small"
+      >
+        {settings.notifications ? <NotificationsIcon /> : <NotificationsOffIcon />}
+      </IconButton>
+    </Tooltip>
   );
 }
 
@@ -159,6 +195,7 @@ function App() {
             <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>Focus Timer</Box>
           </Typography>
           <TimerIndicator />
+          <NotificationToggle />
           <IconButton
             onClick={() => setHistoryOpen(true)}
             sx={{ color: 'text.secondary', mr: 0.5 }}

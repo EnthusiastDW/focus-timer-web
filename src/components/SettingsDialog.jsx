@@ -58,17 +58,28 @@ export default function SettingsDialog({ open, onClose }) {
   }, [open, settings]);
 
   const handleSave = () => {
-    updateSettings({
-      limitedTime: form.limitedTime,
-      focusTime: form.focusTime * 60,
-      shortBreakTime: form.shortBreakTime * 60,
-      longBreakTime: form.longBreakTime * 60,
-      pomodoroRounds: form.pomodoroRounds,
-      autoSwitch: form.autoSwitch,
-      focusSound: form.focusSound,
-      breakSound: form.breakSound,
-      notifications: form.notifications,
-    });
+    if (isLocked) {
+      // 锁定时只保存非时间相关设置
+      updateSettings({
+        notifications: form.notifications,
+        autoSwitch: form.autoSwitch,
+        focusSound: form.focusSound,
+        breakSound: form.breakSound,
+      });
+    } else {
+      // 未锁定时保存所有设置
+      updateSettings({
+        limitedTime: form.limitedTime,
+        focusTime: form.focusTime * 60,
+        shortBreakTime: form.shortBreakTime * 60,
+        longBreakTime: form.longBreakTime * 60,
+        pomodoroRounds: form.pomodoroRounds,
+        autoSwitch: form.autoSwitch,
+        focusSound: form.focusSound,
+        breakSound: form.breakSound,
+        notifications: form.notifications,
+      });
+    }
     onClose();
   };
 
@@ -276,7 +287,6 @@ export default function SettingsDialog({ open, onClose }) {
             <Switch
               checked={form.autoSwitch}
               onChange={(e) => setForm({ ...form, autoSwitch: e.target.checked })}
-              disabled={isLocked}
             />
           }
           label="自动切换阶段"
@@ -355,7 +365,7 @@ export default function SettingsDialog({ open, onClose }) {
         )}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <FormControl fullWidth disabled={isLocked}>
+          <FormControl fullWidth>
             <InputLabel>专注结束提示音</InputLabel>
             <Select
               value={form.focusSound}
@@ -369,7 +379,7 @@ export default function SettingsDialog({ open, onClose }) {
               ))}
             </Select>
           </FormControl>
-          <FormControl fullWidth disabled={isLocked}>
+          <FormControl fullWidth>
             <InputLabel>休息结束提示音</InputLabel>
             <Select
               value={form.breakSound}
@@ -388,7 +398,7 @@ export default function SettingsDialog({ open, onClose }) {
       <DialogActions>
         <Button onClick={handleReset} disabled={isLocked}>重置默认</Button>
         <Button onClick={onClose}>取消</Button>
-        <Button onClick={handleSave} variant="contained" disabled={isLocked}>保存</Button>
+        <Button onClick={handleSave} variant="contained">保存</Button>
       </DialogActions>
     </Dialog>
   );
