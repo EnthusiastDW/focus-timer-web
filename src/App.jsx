@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   CssBaseline,
@@ -32,6 +32,7 @@ import FeedbackPage from './components/FeedbackPage';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import { usePomodoroContext } from './contexts/PomodoroContext';
 import { formatTime } from './hooks/useTimer';
+import useSEO from './hooks/useSEO';
 
 const drawerWidth = 280;
 
@@ -71,6 +72,29 @@ function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  // 定义不同页面的SEO信息
+  const pageSEO = {
+    focus: {
+      title: 'Focus Timer - 番茄钟专注计时器',
+      description: '使用番茄钟技术提高专注力，管理时间，提升工作效率。支持自由模式和限时模式，提供统计分析和桌面通知功能。'
+    },
+    tasks: {
+      title: '任务管理 - Focus Timer',
+      description: '创建和管理你的任务，分组整理，跟踪任务进度，关联番茄钟自动记录耗时。'
+    },
+    statistics: {
+      title: '统计分析 - Focus Timer',
+      description: '查看您的专注统计数据，分析工作效率，了解时间分配情况，优化工作流程。'
+    },
+    feedback: {
+      title: '反馈 - Focus Timer',
+      description: '提交您的问题、建议或反馈，帮助我们改进Focus Timer番茄钟应用。'
+    }
+  };
+
+  // 使用SEO Hook动态设置页面标题和描述
+  useSEO(pageSEO[currentPage]?.title, pageSEO[currentPage]?.description);
 
   const navigateTo = (page) => {
     setCurrentPage(page);

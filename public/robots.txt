@@ -1,0 +1,10 @@
+# 允许所有搜索引擎访问
+User-agent: *
+Allow: /
+
+# Sitemap位置
+Sitemap: https://focus.dengwei.site/sitemap.xml
+
+# 禁止爬取的目录（如果有）
+# Disallow: /admin/
+# Disallow: /private/

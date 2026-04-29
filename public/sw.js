@@ -1,9 +1,11 @@
-const CACHE_NAME = 'focus-timer-v3';
+const CACHE_NAME = 'focus-timer-v4';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/favicon.svg'
+  '/favicon.svg',
+  '/sitemap.xml',
+  '/robots.txt'
 ];
 
 self.addEventListener('install', (event) => {
