@@ -326,36 +326,67 @@ export function PomodoroProvider({ children }) {
 
   const startTimer = useCallback(() => {
     setTimerState(prev => {
-      if (settings.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
-        const currentItem = limitedSchedule[prev.scheduleIndex] || limitedSchedule[0];
+      // 如果已经在运行，直接返回
+      if (prev.isRunning) return prev;
+      
+      // 如果时间剩余为 0，说明已经结束，需要重新初始化
+      if (prev.timeRemaining === 0) {
+        if (settings.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
+          const firstItem = limitedSchedule[0];
+          return {
+            ...prev,
+            isRunning: true,
+            phase: firstItem.phase,
+            timeRemaining: firstItem.duration,
+            currentRound: firstItem.round,
+            scheduleIndex: 0,
+          };
+        }
         return {
           ...prev,
           isRunning: true,
-          phase: currentItem.phase,
-          timeRemaining: currentItem.duration,
-          currentRound: currentItem.round,
-          scheduleIndex: prev.scheduleIndex || 0,
+          timeRemaining: settings.focusTime,
+          currentRound: 1,
+          phase: 'focus',
+          scheduleIndex: 0,
         };
       }
+      
+      // 暂停后继续，保持当前状态不变，只将 isRunning 设为 true
       return { ...prev, isRunning: true };
     });
-  }, [settings.mode, limitedSchedule]);
+  }, [settings.mode, settings.focusTime, limitedSchedule]);
 
   const pauseTimer = useCallback(() => {
     setTimerState(prev => ({ ...prev, isRunning: false }));
   }, []);
 
   const resetTimer = useCallback(() => {
-    setTimerState(prev => ({
-      ...prev,
-      isRunning: false,
-      timeRemaining: settings.focusTime,
-      currentRound: 1,
-      phase: 'focus',
-      scheduleIndex: 0,
-    }));
+    setTimerState(prev => {
+      // 如果是限时模式且有调度计划，根据计划初始化
+      if (settings.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
+        const firstItem = limitedSchedule[0];
+        return {
+          ...prev,
+          isRunning: false,
+          phase: firstItem.phase,
+          timeRemaining: firstItem.duration,
+          currentRound: firstItem.round,
+          scheduleIndex: 0,
+        };
+      }
+      // 自由模式，使用默认值
+      return {
+        ...prev,
+        isRunning: false,
+        timeRemaining: settings.focusTime,
+        currentRound: 1,
+        phase: 'focus',
+        scheduleIndex: 0,
+      };
+    });
     localStorage.removeItem(TIMER_STATE_KEY);
-  }, [settings.focusTime]);
+  }, [settings.focusTime, settings.mode, limitedSchedule]);
 
   const skipPhase = useCallback(() => {
     if (timerState.phase === 'focus') {
@@ -384,16 +415,31 @@ export function PomodoroProvider({ children }) {
       const hasTimeSetting = Object.keys(newSettings).some(isTimeSetting);
       
       if (hasTimeSetting) {
-        setTimerState(current => ({
-          ...current,
-          timeRemaining: updated.focusTime,
-          scheduleIndex: 0,
-        }));
+        setTimerState(current => {
+          // 如果计时器未运行且切换到限时模式，需要根据调度计划初始化
+          if (!current.isRunning && updated.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
+            const firstItem = limitedSchedule[0];
+            return {
+              ...current,
+              phase: firstItem.phase,
+              timeRemaining: firstItem.duration,
+              currentRound: firstItem.round,
+              scheduleIndex: 0,
+            };
+          }
+          
+          // 其他情况，只重置时间和 scheduleIndex
+          return {
+            ...current,
+            timeRemaining: updated.focusTime,
+            scheduleIndex: 0,
+          };
+        });
       }
       
       return updated;
     });
-  }, []);
+  }, [limitedSchedule]);
 
   const updateHistoryTask = useCallback((historyId, taskId) => {
     setHistory(prev =>
