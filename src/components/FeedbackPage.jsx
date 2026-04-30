@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Box,
   Container,
   Typography,
   Tabs,
@@ -12,9 +11,19 @@ import FeedbackList from './FeedbackList';
 
 export default function FeedbackPage() {
   const [tab, setTab] = useState(0);
+  const [editData, setEditData] = useState(null);
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue);
+  };
+
+  const handleEdit = (feedback) => {
+    setEditData(feedback);
+    setTab(0); // 切换到表单标签
+  };
+
+  const handleSubmitSuccess = () => {
+    setEditData(null);
   };
 
   return (
@@ -30,7 +39,21 @@ export default function FeedbackPage() {
         </Tabs>
       </Paper>
 
-      {tab === 0 ? <FeedbackForm /> : <FeedbackList />}
+      {tab === 0 ? (
+        <>
+          {editData && (
+            <Typography variant="h6" gutterBottom color="primary">
+              编辑反馈
+            </Typography>
+          )}
+          <FeedbackForm 
+            editData={editData} 
+            onSubmit={handleSubmitSuccess}
+          />
+        </>
+      ) : (
+        <FeedbackList onEdit={handleEdit} />
+      )}
     </Container>
   );
 }

@@ -27,3 +27,7 @@ test-results
 playwright-report/
 package-lock.json
 eslint.config.js
+
+# Cloudflare Workers
+.wrangler/
+*.toml.local
