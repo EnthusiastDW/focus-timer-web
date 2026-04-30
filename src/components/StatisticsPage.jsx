@@ -29,51 +29,54 @@ import { useTaskContext } from '../contexts/TaskContext';
 import { formatDuration } from '../hooks/useTimer';
 
 export default function StatisticsPage() {
-  const { history, dailyTaskStats } = usePomodoroContext();
+  const { history, dailyTaskStats, taskTotalTimes } = usePomodoroContext();
   const { state: taskState } = useTaskContext();
   const [tab, setTab] = useState(0);
 
-  const today = new Date().toDateString();
-  
+  const today = new Date().toLocaleDateString('zh-CN');
+
   const stats = useMemo(() => {
-    const todaySessions = history.filter(
-      h => h.completedAt && new Date(h.completedAt).toDateString() === today && h.phase === 'focus'
-    );
-    const todayFocusTime = todaySessions.reduce((sum, h) => sum + (h.duration || 0), 0);
+    // 今日专注记录
+    const todayHistory = history.filter(h => h.date === today);
+    const todayFocusTime = todayHistory.reduce((sum, h) => sum + (h.duration || 0), 0);
+    const todaySessions = todayHistory.length;
 
-    const totalFocusTime = history.filter(h => h.phase === 'focus').reduce((sum, h) => sum + (h.duration || 0), 0);
-    const totalSessions = history.filter(h => h.phase === 'focus').length;
+    // 总专注时间
+    const totalFocusTime = history.reduce((sum, h) => sum + (h.duration || 0), 0);
+    const totalSessions = history.length;
 
+    // 今日任务统计
     const todayTaskStats = taskState.tasks.map(task => ({
       ...task,
       todayTime: dailyTaskStats[task.id] || 0,
-      totalTime: history
-        .filter(h => h.taskId === task.id && h.phase === 'focus')
-        .reduce((sum, h) => sum + (h.duration || 0), 0),
+      totalTime: taskTotalTimes[task.id] || 0,
     })).sort((a, b) => b.todayTime - a.todayTime);
 
+    // 未分配任务的时间
+    const todayUnassignedTime = dailyTaskStats['unassigned'] || 0;
+
+    // 分组统计
     const groupStats = taskState.groups.map(group => {
       const groupTaskIds = taskState.tasks.filter(t => t.groupId === group.id).map(t => t.id);
-      const totalTime = history
-        .filter(h => h.phase === 'focus' && groupTaskIds.includes(h.taskId))
-        .reduce((sum, h) => sum + (h.duration || 0), 0);
+      const totalTime = groupTaskIds.reduce((sum, taskId) => {
+        return sum + (taskTotalTimes[taskId] || 0);
+      }, 0);
       return { ...group, totalTime };
     }).sort((a, b) => b.totalTime - a.totalTime);
 
+    // 按日期统计
     const dailyStats = {};
-    history.filter(h => h.completedAt && h.phase === 'focus').forEach(h => {
-      const date = new Date(h.completedAt).toLocaleDateString('zh-CN');
-      dailyStats[date] = (dailyStats[date] || 0) + h.duration;
+    history.forEach(h => {
+      dailyStats[h.date] = (dailyStats[h.date] || 0) + h.duration;
     });
 
     const sortedDailyStats = Object.entries(dailyStats)
-      .sort((a, b) => new Date(b[0]) - new Date(a[0]));
-
-    const todayUnassignedTime = dailyTaskStats['unassigned'] || 0;
+      .sort((a, b) => new Date(b[0].replace(/年|月/g, '-').replace(/日/g, '')) - new Date(a[0].replace(/年|月/g, '-').replace(/日/g, '')));
 
     return {
-      todaySessions,
+      todayHistory,
       todayFocusTime,
+      todaySessions,
       totalFocusTime,
       totalSessions,
       todayTaskStats,
@@ -81,7 +84,7 @@ export default function StatisticsPage() {
       sortedDailyStats,
       todayUnassignedTime,
     };
-  }, [history, taskState.tasks, taskState.groups, dailyTaskStats, today]);
+  }, [history, taskState.tasks, taskState.groups, dailyTaskStats, taskTotalTimes, today]);
 
   const todayTotalMinutes = Math.round(stats.todayFocusTime / 60);
 
@@ -113,7 +116,7 @@ export default function StatisticsPage() {
                 {formatDuration(stats.todayFocusTime)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {stats.todaySessions.length} 个番茄轮
+                {stats.todaySessions} 条记录
               </Typography>
             </CardContent>
           </Card>
@@ -139,7 +142,7 @@ export default function StatisticsPage() {
                 {formatDuration(stats.totalFocusTime)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {stats.totalSessions} 个番茄轮
+                {stats.totalSessions} 条记录
               </Typography>
             </CardContent>
           </Card>
@@ -232,7 +235,7 @@ export default function StatisticsPage() {
                   今日任务专注时间
                 </Typography>
                 <Chip
-                  label={`总计 ${todayTotalMinutes} 分钟`}
+                  label={`总计 ${Math.round(stats.todayFocusTime / 60)} 分钟`}
                   color="primary"
                   size="small"
                   sx={{ ml: 'auto' }}
@@ -353,14 +356,12 @@ export default function StatisticsPage() {
                   <TableRow>
                     <TableCell>日期</TableCell>
                     <TableCell align="right">专注时间</TableCell>
-                    <TableCell align="right">番茄轮数</TableCell>
+                    <TableCell align="right">记录数</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {stats.sortedDailyStats.map(([date, time]) => {
-                    const daySessions = history.filter(
-                      h => new Date(h.completedAt).toLocaleDateString('zh-CN') === date && h.phase === 'focus'
-                    ).length;
+                    const dayRecords = history.filter(h => h.date === date).length;
                     return (
                       <TableRow key={date}>
                         <TableCell>
@@ -372,7 +373,7 @@ export default function StatisticsPage() {
                         <TableCell align="right">
                           <Chip label={formatDuration(time)} size="small" color="primary" />
                         </TableCell>
-                        <TableCell align="right">{daySessions} 次</TableCell>
+                        <TableCell align="right">{dayRecords} 条</TableCell>
                       </TableRow>
                     );
                   })}
@@ -398,14 +399,10 @@ export default function StatisticsPage() {
                     <TableCell>任务名称</TableCell>
                     <TableCell align="right">今日专注</TableCell>
                     <TableCell align="right">总专注时间</TableCell>
-                    <TableCell align="right">完成次数</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {stats.todayTaskStats.map(task => {
-                    const count = history.filter(
-                      h => h.taskId === task.id && h.phase === 'focus'
-                    ).length;
                     return (
                       <TableRow key={task.id}>
                         <TableCell>
@@ -424,13 +421,12 @@ export default function StatisticsPage() {
                         <TableCell align="right">
                           <Chip label={formatDuration(task.totalTime)} size="small" />
                         </TableCell>
-                        <TableCell align="right">{count} 次</TableCell>
                       </TableRow>
                     );
                   })}
                   {stats.todayTaskStats.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} align="center">
+                      <TableCell colSpan={3} align="center">
                         <Typography color="text.secondary" sx={{ py: 4 }}>
                           暂无任务
                         </Typography>

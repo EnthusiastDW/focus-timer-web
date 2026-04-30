@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
   Paper,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Chip,
   Dialog,
   DialogTitle,
@@ -16,33 +17,56 @@ import {
   Button,
   Select,
   MenuItem,
-  InputLabel,
   FormControl,
+  InputLabel,
 } from '@mui/material';
-import HistoryIcon from '@mui/icons-material/History';
+import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
+import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
+import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import EditIcon from '@mui/icons-material/Edit';
 import { usePomodoroContext } from '../contexts/PomodoroContext';
 import { useTaskContext } from '../contexts/TaskContext';
-import { formatDuration, getPhaseLabel } from '../hooks/useTimer';
+import { formatDuration } from '../hooks/useTimer';
 
 export default function HistoryList({ open, onClose }) {
-  const { history, updateHistoryTask } = usePomodoroContext();
+  const { history, taskTotalTimes } = usePomodoroContext();
   const { state: taskState } = useTaskContext();
   const [editingId, setEditingId] = useState(null);
   const [selectedTask, setSelectedTask] = useState('');
 
+  // 按日期分组的历史记录
+  const groupedHistory = useMemo(() => {
+    const groups = {};
+    
+    history.forEach(record => {
+      if (!groups[record.date]) {
+        groups[record.date] = [];
+      }
+      groups[record.date].push(record);
+    });
+
+    // 按日期排序（最新的在前）
+    return Object.entries(groups)
+      .sort((a, b) => {
+        const dateA = new Date(a[0].replace(/年|月/g, '-').replace(/日/g, ''));
+        const dateB = new Date(b[0].replace(/年|月/g, '-').replace(/日/g, ''));
+        return dateB - dateA;
+      });
+  }, [history]);
+
+  const getTaskName = (taskId) => {
+    // taskId 现在是 'unassigned' 或具体的任务ID
+    if (taskId === 'unassigned') return '未分配任务';
+    const task = taskState.tasks.find(t => t.id === taskId);
+    return task ? task.name : '未知任务';
+  };
+
   const handleTaskChange = () => {
     if (editingId) {
-      updateHistoryTask(editingId, selectedTask || null);
+      // 这里可以添加更新历史记录任务的逻辑
       setEditingId(null);
       setSelectedTask('');
     }
-  };
-
-  const phaseColors = {
-    focus: 'primary',
-    shortBreak: 'success',
-    longBreak: 'secondary',
   };
 
   return (
@@ -54,74 +78,60 @@ export default function HistoryList({ open, onClose }) {
             暂无历史记录
           </Typography>
         ) : (
-          <List>
-            {history.slice().reverse().map(item => (
-              <ListItem key={item.id} divider>
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Chip
-                        label={getPhaseLabel(item.phase)}
-                        color={phaseColors[item.phase]}
-                        size="small"
-                      />
-                      {item.taskId && (
-                        <Typography variant="body2" color="text.secondary">
-                          任务: {taskState.tasks.find(t => t.id === item.taskId)?.name || '未知任务'}
-                        </Typography>
-                      )}
-                    </Box>
-                  }
-                  secondary={
-                    <>
-                      <Typography variant="body2" component="span">
-                        时长: {formatDuration(item.duration)}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" display="block">
-                        {new Date(item.completedAt).toLocaleString('zh-CN')}
-                      </Typography>
-                    </>
-                  }
-                />
-                <ListItemSecondaryAction>
-                  <IconButton edge="end" onClick={() => {
-                    setEditingId(item.id);
-                    setSelectedTask(item.taskId || '');
-                  }}>
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
-            ))}
-          </List>
-        )}
+          <Box>
+            {groupedHistory.map(([date, records]) => {
+              const dayTotal = records.reduce((sum, r) => sum + r.duration, 0);
+              
+              return (
+                <Box key={date} sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <CalendarTodayOutlinedIcon color="primary" fontSize="small" />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {date}
+                    </Typography>
+                    <Chip
+                      label={formatDuration(dayTotal)}
+                      size="small"
+                      color="primary"
+                      sx={{ ml: 'auto' }}
+                    />
+                  </Box>
 
-        <Dialog open={Boolean(editingId)} onClose={() => setEditingId(null)}>
-          <DialogTitle>修正关联任务</DialogTitle>
-          <DialogContent>
-            <FormControl fullWidth sx={{ mt: 1 }}>
-              <InputLabel>选择任务</InputLabel>
-              <Select
-                value={selectedTask}
-                label="选择任务"
-                onChange={(e) => setSelectedTask(e.target.value)}
-              >
-                <MenuItem value="">无任务</MenuItem>
-                {taskState.tasks.map(task => (
-                  <MenuItem key={task.id} value={task.id}>
-                    {task.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setEditingId(null)}>取消</Button>
-            <Button onClick={handleTaskChange} variant="contained">
-              保存
-            </Button>
-          </DialogActions>
-        </Dialog>
+                  <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid', borderColor: 'divider' }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>任务</TableCell>
+                          <TableCell align="right">专注时长</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {records.map(record => (
+                          <TableRow key={record.id}>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <AssignmentOutlinedIcon color="action" fontSize="small" />
+                                {getTaskName(record.taskId)}
+                              </Box>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip
+                                icon={<TimerOutlinedIcon />}
+                                label={formatDuration(record.duration)}
+                                size="small"
+                                variant="outlined"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>关闭</Button>

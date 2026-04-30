@@ -37,21 +37,13 @@ import { formatDuration } from '../hooks/useTimer';
 
 export default function TaskManagement() {
   const { state, dispatch } = useTaskContext();
-  const { history } = usePomodoroContext();
+  const { taskTotalTimes } = usePomodoroContext();
   const [openDialog, setOpenDialog] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [taskForm, setTaskForm] = useState({ name: '', link: '', notes: '', groupId: 'default' });
   const [newGroupDialog, setNewGroupDialog] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [expandedGroups, setExpandedGroups] = useState({ default: true });
-
-  const taskTotalTimes = useMemo(() => {
-    const times = {};
-    history.filter(h => h.phase === 'focus').forEach(h => {
-      times[h.taskId] = (times[h.taskId] || 0) + (h.duration || 0);
-    });
-    return times;
-  }, [history]);
 
   const handleOpenDialog = (task = null) => {
     if (task) {
@@ -270,13 +262,15 @@ export default function TaskManagement() {
                             </Box>
                           )}
 
-                          <Chip
-                            icon={<TimerOutlinedIcon />}
-                            label={formatDuration(taskTotalTimes[task.id] || 0)}
-                            size="small"
-                            variant="outlined"
-                            sx={{ mt: 1 }}
-                          />
+                          {(taskTotalTimes[task.id] || 0) > 0 && (
+                            <Chip
+                              icon={<TimerOutlinedIcon />}
+                              label={formatDuration(taskTotalTimes[task.id] || 0)}
+                              size="small"
+                              variant="outlined"
+                              sx={{ mt: 1 }}
+                            />
+                          )}
                         </CardContent>
                         <CardActions sx={{ pt: 0 }}>
                           <Button

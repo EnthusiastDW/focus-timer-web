@@ -102,7 +102,17 @@ function loadTimerState(settings) {
 export function PomodoroProvider({ children }) {
   const [settings, setSettings] = useState(() => getStorageItem(SETTINGS_KEY, defaultSettings));
   const [timerState, setTimerState] = useState(() => loadTimerState(getStorageItem(SETTINGS_KEY, defaultSettings)));
-  const [history, setHistory] = useState(() => getStorageItem(HISTORY_KEY, []));
+  const [history, setHistory] = useState(() => {
+    // 加载历史记录并修复旧数据
+    const savedHistory = getStorageItem(HISTORY_KEY, []);
+    return savedHistory.map(record => ({
+      ...record,
+      // 修复 date 为 undefined 的记录
+      date: record.date || new Date().toLocaleDateString('zh-CN'),
+      // 修复 taskId 为 null 的记录
+      taskId: record.taskId || 'unassigned',
+    }));
+  });
   const [currentSessionStart, setCurrentSessionStart] = useState(null);
   const minutesRecordedRef = useRef(0);
   const intervalRef = useRef(null);
@@ -141,16 +151,43 @@ export function PomodoroProvider({ children }) {
     }
   }, [timerState, settings]);
 
-  const addHistory = useCallback((phase, duration, taskId) => {
-    const session = {
-      id: Date.now().toString(),
-      phase,
-      duration,
-      taskId,
-      completedAt: new Date().toISOString(),
-    };
-    setHistory(prev => [...prev, session]);
-    return session;
+  // 添加或更新历史记录（按日期+任务分组）
+  const addOrUpdateHistory = useCallback((date, taskId, duration) => {
+    // 确保 date 有值，如果为 undefined 则使用当前日期
+    const validDate = date || new Date().toLocaleDateString('zh-CN');
+    
+    setHistory(prev => {
+      // 将 null 转换为 'unassigned' 字符串，作为独立的任务ID
+      const normalizedTaskId = taskId || 'unassigned';
+      
+      const existingIndex = prev.findIndex(
+        item => item.date === validDate && item.taskId === normalizedTaskId
+      );
+      
+      if (existingIndex >= 0) {
+        // 更新现有记录
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          duration: updated[existingIndex].duration + duration,
+          updatedAt: new Date().toISOString(),
+        };
+        return updated;
+      } else {
+        // 创建新记录
+        return [
+          ...prev,
+          {
+            id: `${validDate}-${normalizedTaskId}`,
+            date: validDate,
+            taskId: normalizedTaskId,
+            duration,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ];
+      }
+    });
   }, []);
 
   const switchToNextPhase = useCallback(() => {
@@ -253,12 +290,14 @@ export function PomodoroProvider({ children }) {
             clearInterval(intervalRef.current);
             
             if (prev.phase === 'focus') {
+              // 记录剩余的秒数（不足一分钟的部分）
               const actualDuration = settings.mode === 'limited' && limitedSchedule
                 ? limitedSchedule[prev.scheduleIndex]?.duration || settings.focusTime
                 : settings.focusTime;
               const remainingSeconds = actualDuration - minutesRecordedRef.current * 60;
               if (remainingSeconds > 0) {
-                addHistory('focus', remainingSeconds, prev.taskId);
+                const date = new Date().toLocaleDateString('zh-CN');
+                addOrUpdateHistory(date, prev.taskId, remainingSeconds);
               }
               setCurrentSessionStart(null);
               minutesRecordedRef.current = 0;
@@ -275,7 +314,9 @@ export function PomodoroProvider({ children }) {
           const newMinutes = Math.floor(elapsedSeconds / 60);
           
           if (newMinutes > minutesRecordedRef.current) {
-            addHistory('focus', 60, prev.taskId);
+            // 每分钟记录一次
+            const date = new Date().toLocaleDateString('zh-CN');
+            addOrUpdateHistory(date, prev.taskId, 60);
             minutesRecordedRef.current = newMinutes;
           }
           
@@ -305,10 +346,12 @@ export function PomodoroProvider({ children }) {
     } else {
       clearInterval(intervalRef.current);
       if (currentSessionStart && timerState.phase === 'focus') {
+        // 记录暂停时未记录的剩余时间
         const elapsed = Math.floor((Date.now() - currentSessionStart) / 1000);
         const remainingSeconds = elapsed - minutesRecordedRef.current * 60;
         if (remainingSeconds > 0) {
-          addHistory('focus', remainingSeconds, timerState.taskId);
+          const date = new Date().toLocaleDateString('zh-CN');
+          addOrUpdateHistory(date, timerState.taskId, remainingSeconds);
         }
         setCurrentSessionStart(null);
         minutesRecordedRef.current = 0;
@@ -316,7 +359,7 @@ export function PomodoroProvider({ children }) {
     }
 
     return () => clearInterval(intervalRef.current);
-  }, [timerState.isRunning, timerState.phase, settings.focusTime, settings.mode, limitedSchedule, addHistory, currentSessionStart, timerState.taskId]);
+  }, [timerState.isRunning, timerState.phase, settings.focusTime, settings.mode, limitedSchedule, currentSessionStart, timerState.taskId]);
 
   useEffect(() => {
     if (timerState.timeRemaining === 0 && !timerState.isRunning) {
@@ -390,13 +433,16 @@ export function PomodoroProvider({ children }) {
 
   const skipPhase = useCallback(() => {
     if (timerState.phase === 'focus') {
+      // 跳过时记录已完成的时长
       const actualDuration = settings.mode === 'limited' && limitedSchedule
         ? limitedSchedule[timerState.scheduleIndex]?.duration || settings.focusTime
         : settings.focusTime;
-      addHistory('focus', actualDuration - timerState.timeRemaining, timerState.taskId);
+      const completedDuration = actualDuration - timerState.timeRemaining;
+      const date = new Date().toLocaleDateString('zh-CN');
+      addOrUpdateHistory(date, timerState.taskId, completedDuration);
     }
     switchToNextPhase();
-  }, [timerState, settings, limitedSchedule, addHistory, switchToNextPhase]);
+  }, [timerState, settings, limitedSchedule, addOrUpdateHistory, switchToNextPhase]);
 
   const setTaskId = useCallback((taskId) => {
     setTimerState(prev => ({ ...prev, taskId }));
@@ -441,36 +487,38 @@ export function PomodoroProvider({ children }) {
     });
   }, [limitedSchedule]);
 
-  const updateHistoryTask = useCallback((historyId, taskId) => {
-    setHistory(prev =>
-      prev.map(item =>
-        item.id === historyId ? { ...item, taskId } : item
-      )
-    );
-  }, []);
+  // 计算今日总专注时间
+  const totalDailyTime = useMemo(() => {
+    const today = new Date().toLocaleDateString('zh-CN');
+    return history
+      .filter(h => h.date === today)
+      .reduce((sum, h) => sum + (h.duration || 0), 0);
+  }, [history]);
 
-  const totalDailyTime = history
-    .filter(h => {
-      const today = new Date().toDateString();
-      return h.completedAt && new Date(h.completedAt).toDateString() === today && h.phase === 'focus';
-    })
-    .reduce((sum, h) => sum + (h.duration || 0), 0);
-
+  // 计算今日各任务的专注时间统计
   const dailyTaskStats = useMemo(() => {
-    const today = new Date().toDateString();
-    const todayFocus = history.filter(
-      h => h.completedAt && new Date(h.completedAt).toDateString() === today && h.phase === 'focus'
-    );
+    const today = new Date().toLocaleDateString('zh-CN');
+    const todayHistory = history.filter(h => h.date === today);
     
     const stats = {};
-    todayFocus.forEach(h => {
-      const taskId = h.taskId || 'unassigned';
-      stats[taskId] = (stats[taskId] || 0) + (h.duration || 0);
+    todayHistory.forEach(h => {
+      // taskId 已经是 'unassigned' 或具体的任务ID
+      stats[h.taskId] = (stats[h.taskId] || 0) + (h.duration || 0);
     });
     
     return stats;
   }, [history]);
 
+  // 计算各任务的总专注时间
+  const taskTotalTimes = useMemo(() => {
+    const times = {};
+    history.forEach(h => {
+      if (h.taskId) {
+        times[h.taskId] = (times[h.taskId] || 0) + (h.duration || 0);
+      }
+    });
+    return times;
+  }, [history]);
   const isLocked = timerState.isRunning || (settings.mode === 'limited' && timerState.scheduleIndex > 0);
 
   return (
@@ -481,6 +529,7 @@ export function PomodoroProvider({ children }) {
         history,
         totalDailyTime,
         dailyTaskStats,
+        taskTotalTimes,
         limitedSchedule,
         isLocked,
         startTimer,
@@ -489,7 +538,6 @@ export function PomodoroProvider({ children }) {
         skipPhase,
         setTaskId,
         updateSettings,
-        updateHistoryTask,
       }}
     >
       {children}

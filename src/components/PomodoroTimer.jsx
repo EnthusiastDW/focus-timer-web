@@ -23,6 +23,7 @@ import CoffeeOutlinedIcon from '@mui/icons-material/CoffeeOutlined';
 import SelfImprovementOutlinedIcon from '@mui/icons-material/SelfImprovementOutlined';
 import AllInclusiveIcon from '@mui/icons-material/AllInclusive';
 import ScheduleIcon from '@mui/icons-material/Schedule';
+import CloseIcon from '@mui/icons-material/Close';
 import { usePomodoroContext } from '../contexts/PomodoroContext';
 import { useTaskContext } from '../contexts/TaskContext';
 import { formatTime, formatDuration } from '../hooks/useTimer';
@@ -281,6 +282,9 @@ export default function PomodoroTimer({ onNavigate }) {
                 bgcolor: alpha('#fff', 0.15),
                 backdropFilter: 'blur(10px)',
                 maxWidth: '90%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
               }}
             >
               <Typography
@@ -292,10 +296,32 @@ export default function PomodoroTimer({ onNavigate }) {
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
+                  flex: 1,
                 }}
               >
                 📌 {currentTask.name}
               </Typography>
+              <Box
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTaskId(null);
+                }}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 20,
+                  height: 20,
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  '&:hover': {
+                    bgcolor: alpha('#fff', 0.3),
+                  },
+                }}
+              >
+                <CloseIcon sx={{ fontSize: 14, color: 'white' }} />
+              </Box>
             </Box>
           )}
         </Box>
@@ -452,7 +478,7 @@ export default function PomodoroTimer({ onNavigate }) {
             );
           }}
           noOptionsText={taskSearchValue.trim() ? `创建 "${taskSearchValue}"` : '暂无任务'}
-          disableClearable
+          disableClearable={false}
         />
       </Box>
 
