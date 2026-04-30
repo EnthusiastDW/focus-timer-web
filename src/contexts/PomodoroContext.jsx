@@ -25,10 +25,10 @@ function calculateLimitedSchedule(totalSeconds, settings) {
   const schedule = [];
   let remaining = totalSeconds;
   let round = 1;
-  
+
   while (remaining > 0) {
     const isLongBreakRound = round > 1 && (round - 1) % settings.pomodoroRounds === 0;
-    
+
     if (remaining <= settings.focusTime) {
       schedule.push({
         round,
@@ -45,7 +45,7 @@ function calculateLimitedSchedule(totalSeconds, settings) {
         isLast: false,
       });
       remaining -= settings.focusTime;
-      
+
       if (remaining > 0) {
         const breakTime = isLongBreakRound ? settings.longBreakTime : settings.shortBreakTime;
         const actualBreak = Math.min(breakTime, remaining);
@@ -58,16 +58,16 @@ function calculateLimitedSchedule(totalSeconds, settings) {
         remaining -= actualBreak;
       }
     }
-    
+
     if (remaining > 0) {
       round++;
     }
   }
-  
+
   if (schedule.length > 0) {
     schedule[schedule.length - 1].isLast = true;
   }
-  
+
   return schedule;
 }
 
@@ -75,13 +75,13 @@ function loadTimerState(settings) {
   const saved = getStorageItem(TIMER_STATE_KEY, null);
   if (saved && saved.isRunning) {
     const elapsed = Math.floor((Date.now() - saved.startTime) / 1000);
-    const phaseTime = saved.phase === 'focus' 
-      ? settings.focusTime 
-      : saved.phase === 'shortBreak' 
-        ? settings.shortBreakTime 
+    const phaseTime = saved.phase === 'focus'
+      ? settings.focusTime
+      : saved.phase === 'shortBreak'
+        ? settings.shortBreakTime
         : settings.longBreakTime;
     const remaining = Math.max(0, phaseTime - elapsed);
-    
+
     if (remaining > 0) {
       return {
         ...saved,
@@ -114,7 +114,7 @@ export function PomodoroProvider({ children }) {
     }));
   });
   const [currentSessionStart, setCurrentSessionStart] = useState(null);
-  const minutesRecordedRef = useRef(0);
+  const secondsRecordedRef = useRef(0);
   const intervalRef = useRef(null);
   const lastPhaseRef = useRef(null); // 用于防止重复触发通知
 
@@ -137,10 +137,10 @@ export function PomodoroProvider({ children }) {
 
   useEffect(() => {
     if (timerState.isRunning) {
-      const phaseTime = timerState.phase === 'focus' 
-        ? settings.focusTime 
-        : timerState.phase === 'shortBreak' 
-          ? settings.shortBreakTime 
+      const phaseTime = timerState.phase === 'focus'
+        ? settings.focusTime
+        : timerState.phase === 'shortBreak'
+          ? settings.shortBreakTime
           : settings.longBreakTime;
       setStorageItem(TIMER_STATE_KEY, {
         ...timerState,
@@ -155,15 +155,15 @@ export function PomodoroProvider({ children }) {
   const addOrUpdateHistory = useCallback((date, taskId, duration) => {
     // 确保 date 有值，如果为 undefined 则使用当前日期
     const validDate = date || new Date().toLocaleDateString('zh-CN');
-    
+
     setHistory(prev => {
       // 将 null 转换为 'unassigned' 字符串，作为独立的任务ID
       const normalizedTaskId = taskId || 'unassigned';
-      
+
       const existingIndex = prev.findIndex(
         item => item.date === validDate && item.taskId === normalizedTaskId
       );
-      
+
       if (existingIndex >= 0) {
         // 更新现有记录
         const updated = [...prev];
@@ -196,7 +196,7 @@ export function PomodoroProvider({ children }) {
       if (lastPhaseRef.current === `${prev.phase}-${prev.currentRound}-${prev.timeRemaining}`) {
         return prev;
       }
-      
+
       if (settings.mode === 'limited' && limitedSchedule) {
         const nextIndex = prev.scheduleIndex + 1;
         if (nextIndex >= limitedSchedule.length) {
@@ -209,7 +209,7 @@ export function PomodoroProvider({ children }) {
             timeRemaining: 0,
           };
         }
-        
+
         const nextItem = limitedSchedule[nextIndex];
         if (nextItem.phase !== 'focus') {
           // 专注结束，进入休息
@@ -239,19 +239,19 @@ export function PomodoroProvider({ children }) {
           };
         }
       }
-      
+
       const { phase, currentRound } = prev;
-      
+
       if (phase === 'focus') {
         // 专注结束，进入休息
         const isLongBreak = currentRound % settings.pomodoroRounds === 0;
         const nextPhase = isLongBreak ? 'longBreak' : 'shortBreak';
         const nextTime = isLongBreak ? settings.longBreakTime : settings.shortBreakTime;
-        
+
         playSound(settings.focusSound);
         playNotification('专注完成！', isLongBreak ? '开始长休息' : '开始短休息', settings.notifications);
         lastPhaseRef.current = `${nextPhase}-${currentRound}-${nextTime}`;
-        
+
         return {
           ...prev,
           isRunning: settings.autoSwitch,
@@ -261,11 +261,11 @@ export function PomodoroProvider({ children }) {
       } else {
         // 休息结束，进入专注
         const nextRound = prev.currentRound + 1;
-        
+
         playSound(settings.breakSound);
         playNotification('休息结束！', `开始第 ${nextRound} 轮专注`, settings.notifications);
         lastPhaseRef.current = `focus-${nextRound}-${settings.focusTime}`;
-        
+
         return {
           ...prev,
           isRunning: settings.autoSwitch,
@@ -281,50 +281,67 @@ export function PomodoroProvider({ children }) {
     if (timerState.isRunning && timerState.phase === 'focus') {
       if (!currentSessionStart) {
         setCurrentSessionStart(Date.now());
-        minutesRecordedRef.current = 0;
+        // 暂停后恢复时不重置 secondsRecordedRef（保留已累计秒数），
+        // 其重置仅在阶段结束时进行（completion/skip/reset）
       }
-      
+
       intervalRef.current = setInterval(() => {
+        let completed = false;
+        let taskInfo = null;
+
         setTimerState(prev => {
           if (prev.timeRemaining <= 1) {
             clearInterval(intervalRef.current);
-            
+
             if (prev.phase === 'focus') {
-              // 记录剩余的秒数（不足一分钟的部分）
-              const actualDuration = settings.mode === 'limited' && limitedSchedule
-                ? limitedSchedule[prev.scheduleIndex]?.duration || settings.focusTime
-                : settings.focusTime;
-              const remainingSeconds = actualDuration - minutesRecordedRef.current * 60;
-              if (remainingSeconds > 0) {
-                const date = new Date().toLocaleDateString('zh-CN');
-                addOrUpdateHistory(date, prev.taskId, remainingSeconds);
-              }
-              setCurrentSessionStart(null);
-              minutesRecordedRef.current = 0;
+              taskInfo = {
+                taskId: prev.taskId,
+                scheduleIndex: prev.scheduleIndex,
+              };
             }
-            
+
+            completed = true;
+
             return {
               ...prev,
               isRunning: false,
               timeRemaining: 0,
             };
           }
-          
+
           const elapsedSeconds = settings.focusTime - prev.timeRemaining;
-          const newMinutes = Math.floor(elapsedSeconds / 60);
-          
-          if (newMinutes > minutesRecordedRef.current) {
-            // 每分钟记录一次
+          const elapsedFullMinutes = Math.floor(elapsedSeconds / 60);
+          const targetRecorded = elapsedFullMinutes * 60;
+          const toRecord = targetRecorded - secondsRecordedRef.current;
+
+          if (toRecord > 0) {
             const date = new Date().toLocaleDateString('zh-CN');
-            addOrUpdateHistory(date, prev.taskId, 60);
-            minutesRecordedRef.current = newMinutes;
+            addOrUpdateHistory(date, prev.taskId, toRecord);
+            secondsRecordedRef.current += toRecord;
           }
-          
+
           return {
             ...prev,
             timeRemaining: prev.timeRemaining - 1,
           };
         });
+
+        // 所有副作用移出 updater，避免 StrictMode 重复调用问题
+        if (completed) {
+          if (taskInfo) {
+            const actualDuration = settings.mode === 'limited' && limitedSchedule
+              ? limitedSchedule[taskInfo.scheduleIndex]?.duration || settings.focusTime
+              : settings.focusTime;
+            const remainingSeconds = actualDuration - secondsRecordedRef.current;
+            if (remainingSeconds > 0) {
+              const date = new Date().toLocaleDateString('zh-CN');
+              addOrUpdateHistory(date, taskInfo.taskId, remainingSeconds);
+              secondsRecordedRef.current += remainingSeconds;
+            }
+          }
+          setCurrentSessionStart(null);
+          secondsRecordedRef.current = 0;
+        }
       }, 1000);
     } else if (timerState.isRunning && timerState.phase !== 'focus') {
       intervalRef.current = setInterval(() => {
@@ -346,15 +363,16 @@ export function PomodoroProvider({ children }) {
     } else {
       clearInterval(intervalRef.current);
       if (currentSessionStart && timerState.phase === 'focus') {
-        // 记录暂停时未记录的剩余时间
+        // 暂停时记录未记录的剩余时间（从上次记录到现在的差值）
         const elapsed = Math.floor((Date.now() - currentSessionStart) / 1000);
-        const remainingSeconds = elapsed - minutesRecordedRef.current * 60;
-        if (remainingSeconds > 0) {
+        const toRecord = elapsed - secondsRecordedRef.current;
+        if (toRecord > 0) {
           const date = new Date().toLocaleDateString('zh-CN');
-          addOrUpdateHistory(date, timerState.taskId, remainingSeconds);
+          addOrUpdateHistory(date, timerState.taskId, toRecord);
+          secondsRecordedRef.current += toRecord;
         }
         setCurrentSessionStart(null);
-        minutesRecordedRef.current = 0;
+        // 注意：secondsRecordedRef 不重置，以便继续后正确计算
       }
     }
 
@@ -371,7 +389,7 @@ export function PomodoroProvider({ children }) {
     setTimerState(prev => {
       // 如果已经在运行，直接返回
       if (prev.isRunning) return prev;
-      
+
       // 如果时间剩余为 0，说明已经结束，需要重新初始化
       if (prev.timeRemaining === 0) {
         if (settings.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
@@ -394,7 +412,7 @@ export function PomodoroProvider({ children }) {
           scheduleIndex: 0,
         };
       }
-      
+
       // 暂停后继续，保持当前状态不变，只将 isRunning 设为 true
       return { ...prev, isRunning: true };
     });
@@ -405,6 +423,7 @@ export function PomodoroProvider({ children }) {
   }, []);
 
   const resetTimer = useCallback(() => {
+    secondsRecordedRef.current = 0;
     setTimerState(prev => {
       // 如果是限时模式且有调度计划，根据计划初始化
       if (settings.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
@@ -433,13 +452,22 @@ export function PomodoroProvider({ children }) {
 
   const skipPhase = useCallback(() => {
     if (timerState.phase === 'focus') {
-      // 跳过时记录已完成的时长
-      const actualDuration = settings.mode === 'limited' && limitedSchedule
-        ? limitedSchedule[timerState.scheduleIndex]?.duration || settings.focusTime
-        : settings.focusTime;
-      const completedDuration = actualDuration - timerState.timeRemaining;
-      const date = new Date().toLocaleDateString('zh-CN');
-      addOrUpdateHistory(date, timerState.taskId, completedDuration);
+      if (timerState.isRunning) {
+        // 跳过时基于累计记录差值记录未记部分
+        const actualDuration = settings.mode === 'limited' && limitedSchedule
+          ? limitedSchedule[timerState.scheduleIndex]?.duration || settings.focusTime
+          : settings.focusTime;
+        const totalElapsed = actualDuration - timerState.timeRemaining;
+        const toRecord = totalElapsed - secondsRecordedRef.current;
+        if (toRecord > 0) {
+          const date = new Date().toLocaleDateString('zh-CN');
+          addOrUpdateHistory(date, timerState.taskId, toRecord);
+          secondsRecordedRef.current += toRecord;
+        }
+      }
+      // 重置会话状态，确保后续新专注阶段的时间记录正确
+      setCurrentSessionStart(null);
+      secondsRecordedRef.current = 0;
     }
     switchToNextPhase();
   }, [timerState, settings, limitedSchedule, addOrUpdateHistory, switchToNextPhase]);
@@ -456,10 +484,10 @@ export function PomodoroProvider({ children }) {
   const updateSettings = useCallback((newSettings) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
-      
+
       // 只有当时间相关设置改变时才重置计时器
       const hasTimeSetting = Object.keys(newSettings).some(isTimeSetting);
-      
+
       if (hasTimeSetting) {
         setTimerState(current => {
           // 如果计时器未运行且切换到限时模式，需要根据调度计划初始化
@@ -473,7 +501,7 @@ export function PomodoroProvider({ children }) {
               scheduleIndex: 0,
             };
           }
-          
+
           // 其他情况，只重置时间和 scheduleIndex
           return {
             ...current,
@@ -482,7 +510,7 @@ export function PomodoroProvider({ children }) {
           };
         });
       }
-      
+
       return updated;
     });
   }, [limitedSchedule]);
@@ -499,13 +527,13 @@ export function PomodoroProvider({ children }) {
   const dailyTaskStats = useMemo(() => {
     const today = new Date().toLocaleDateString('zh-CN');
     const todayHistory = history.filter(h => h.date === today);
-    
+
     const stats = {};
     todayHistory.forEach(h => {
       // taskId 已经是 'unassigned' 或具体的任务ID
       stats[h.taskId] = (stats[h.taskId] || 0) + (h.duration || 0);
     });
-    
+
     return stats;
   }, [history]);
 
