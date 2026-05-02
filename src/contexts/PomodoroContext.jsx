@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createContext, useContext, useReducer, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getStorageItem, setStorageItem } from '../utils/storage';
 import { playSound, playNotification, requestNotificationPermission } from '../utils/audio';
 
@@ -71,61 +71,161 @@ function calculateLimitedSchedule(totalSeconds, settings) {
   return schedule;
 }
 
-function loadTimerState(settings) {
-  const saved = getStorageItem(TIMER_STATE_KEY, null);
-  if (saved && saved.isRunning) {
-    const elapsed = Math.floor((Date.now() - saved.startTime) / 1000);
-    const phaseTime = saved.phase === 'focus'
-      ? settings.focusTime
-      : saved.phase === 'shortBreak'
-        ? settings.shortBreakTime
-        : settings.longBreakTime;
-    const remaining = Math.max(0, phaseTime - elapsed);
+function getPhaseDuration(phase, settings) {
+  switch (phase) {
+    case 'focus': return settings.focusTime;
+    case 'shortBreak': return settings.shortBreakTime;
+    case 'longBreak': return settings.longBreakTime;
+    default: return settings.focusTime;
+  }
+}
 
+function initialPhaseState(settings, limitedSchedule) {
+  if (settings.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
+    return {
+      status: 'idle',
+      phase: limitedSchedule[0].phase,
+      timeRemaining: limitedSchedule[0].duration,
+      currentRound: limitedSchedule[0].round,
+      scheduleIndex: 0,
+      taskId: null,
+    };
+  }
+  return {
+    status: 'idle',
+    phase: 'focus',
+    timeRemaining: settings.focusTime,
+    currentRound: 1,
+    scheduleIndex: 0,
+    taskId: null,
+  };
+}
+
+function computeNextPhase(state, settings, limitedSchedule) {
+  if (settings.mode === 'limited' && limitedSchedule) {
+    const nextIndex = state.scheduleIndex + 1;
+    if (nextIndex >= limitedSchedule.length) return null;
+    const item = limitedSchedule[nextIndex];
+    return {
+      phase: item.phase,
+      duration: item.duration,
+      round: item.round,
+      scheduleIndex: nextIndex,
+      autoStart: settings.autoSwitch,
+    };
+  }
+
+  if (state.phase === 'focus') {
+    const isLongBreak = state.currentRound % settings.pomodoroRounds === 0;
+    return {
+      phase: isLongBreak ? 'longBreak' : 'shortBreak',
+      duration: isLongBreak ? settings.longBreakTime : settings.shortBreakTime,
+      round: state.currentRound,
+      scheduleIndex: 0,
+      autoStart: settings.autoSwitch,
+    };
+  }
+
+  return {
+    phase: 'focus',
+    duration: settings.focusTime,
+    round: state.currentRound + 1,
+    scheduleIndex: 0,
+    autoStart: settings.autoSwitch,
+  };
+}
+
+function timerReducer(state, action) {
+  switch (action.type) {
+    case 'START':
+      if (state.status === 'running') return state;
+      return { ...state, status: 'running' };
+
+    case 'PAUSE':
+      if (state.status !== 'running') return state;
+      return { ...state, status: 'paused' };
+
+    case 'TICK':
+      if (state.status !== 'running') return state;
+      return { ...state, timeRemaining: state.timeRemaining - 1 };
+
+    case 'COMPLETE':
+      if (state.status === 'idle') return state;
+      return { ...state, status: 'idle', timeRemaining: 0 };
+
+    case 'NEXT_PHASE': {
+      const p = action.payload;
+      if (state.status !== 'idle' || state.timeRemaining !== 0) return state;
+      return {
+        ...state,
+        status: p.autoStart ? 'running' : 'idle',
+        phase: p.phase,
+        timeRemaining: p.duration,
+        currentRound: p.round,
+        scheduleIndex: p.scheduleIndex,
+      };
+    }
+
+    case 'RESET':
+      return action.payload;
+
+    case 'SET_TASK_ID':
+      return { ...state, taskId: action.payload };
+
+    default:
+      return state;
+  }
+}
+
+function loadSavedTimerState(settings, limitedSchedule) {
+  const saved = getStorageItem(TIMER_STATE_KEY, null);
+  if (saved && (saved.status === 'running' || saved.status === 'paused')) {
+    const elapsed = Math.floor((Date.now() - saved.savedAt) / 1000);
+    const remaining = Math.max(0, saved.timeRemaining - elapsed);
     if (remaining > 0) {
       return {
-        ...saved,
+        status: 'paused',
+        phase: saved.phase || 'focus',
         timeRemaining: remaining,
+        currentRound: saved.currentRound || 1,
+        scheduleIndex: saved.scheduleIndex || 0,
+        taskId: saved.taskId || null,
       };
     }
   }
-  return {
-    isRunning: false,
-    timeRemaining: settings.focusTime,
-    currentRound: 1,
-    phase: 'focus',
-    taskId: null,
-    scheduleIndex: 0,
-  };
+  return initialPhaseState(settings, limitedSchedule);
 }
 
 export function PomodoroProvider({ children }) {
   const [settings, setSettings] = useState(() => getStorageItem(SETTINGS_KEY, defaultSettings));
-  const [timerState, setTimerState] = useState(() => loadTimerState(getStorageItem(SETTINGS_KEY, defaultSettings)));
   const [history, setHistory] = useState(() => {
-    // 加载历史记录并修复旧数据
     const savedHistory = getStorageItem(HISTORY_KEY, []);
     return savedHistory.map(record => ({
       ...record,
-      // 修复 date 为 undefined 的记录
       date: record.date || new Date().toLocaleDateString('zh-CN'),
-      // 修复 taskId 为 null 的记录
       taskId: record.taskId || 'unassigned',
     }));
   });
-  const [currentSessionStart, setCurrentSessionStart] = useState(null);
-  const secondsRecordedRef = useRef(0);
-  const intervalRef = useRef(null);
-  const lastPhaseRef = useRef(null); // 用于防止重复触发通知
 
   const limitedSchedule = useMemo(() => {
     if (settings.mode !== 'limited') return null;
     return calculateLimitedSchedule(settings.limitedTime * 60, settings);
   }, [settings.mode, settings.limitedTime, settings.focusTime, settings.shortBreakTime, settings.longBreakTime, settings.pomodoroRounds]);
 
+  const [timerState, dispatch] = useReducer(
+    timerReducer,
+    [settings, limitedSchedule],
+    ([s, ls]) => loadSavedTimerState(s, ls)
+  );
+
+  const lastRecordedSecondsRef = useRef(0);
+  const recordingGuardRef = useRef(false);
+
   useEffect(() => {
     requestNotificationPermission();
   }, []);
+
+  // ── Persistence effects ──
 
   useEffect(() => {
     setStorageItem(SETTINGS_KEY, settings);
@@ -136,36 +236,74 @@ export function PomodoroProvider({ children }) {
   }, [history]);
 
   useEffect(() => {
-    if (timerState.isRunning) {
-      const phaseTime = timerState.phase === 'focus'
-        ? settings.focusTime
-        : timerState.phase === 'shortBreak'
-          ? settings.shortBreakTime
-          : settings.longBreakTime;
+    if (timerState.status === 'running' || timerState.status === 'paused') {
       setStorageItem(TIMER_STATE_KEY, {
-        ...timerState,
-        startTime: Date.now() - (phaseTime - timerState.timeRemaining) * 1000,
+        status: timerState.status,
+        phase: timerState.phase,
+        timeRemaining: timerState.timeRemaining,
+        currentRound: timerState.currentRound,
+        scheduleIndex: timerState.scheduleIndex,
+        taskId: timerState.taskId,
+        savedAt: Date.now(),
       });
     } else {
       localStorage.removeItem(TIMER_STATE_KEY);
     }
-  }, [timerState, settings]);
+  }, [timerState.status, timerState.phase, timerState.timeRemaining, timerState.currentRound, timerState.scheduleIndex, timerState.taskId]);
 
-  // 添加或更新历史记录（按日期+任务分组）
+  // ── Timer tick effect ──
+
+  useEffect(() => {
+    if (timerState.status !== 'running') return;
+    const id = setInterval(() => dispatch({ type: 'TICK' }), 1000);
+    return () => clearInterval(id);
+  }, [timerState.status]);
+
+  // ── Completion detection effect ──
+  // When timeRemaining hits 0 while running, mark phase as complete
+  // The reducer is idempotent for COMPLETE, so StrictMode double-invoke is safe
+
+  useEffect(() => {
+    if (timerState.status === 'running' && timerState.timeRemaining <= 0) {
+      dispatch({ type: 'COMPLETE' });
+    }
+  }, [timerState.timeRemaining, timerState.status]);
+
+  // ── Phase transition effect ──
+  // After COMPLETE sets status=idle, compute and transition to next phase
+
+  useEffect(() => {
+    if (timerState.status === 'idle' && timerState.timeRemaining === 0) {
+      const next = computeNextPhase(timerState, settings, limitedSchedule);
+      if (next) {
+        if (timerState.phase === 'focus') {
+          playSound(settings.focusSound);
+          playNotification('专注完成！', next.phase === 'longBreak' ? '开始长休息' : '开始短休息', settings.notifications);
+        } else {
+          playSound(settings.breakSound);
+          playNotification('休息结束！', `开始第 ${next.round} 轮专注`, settings.notifications);
+        }
+        dispatch({ type: 'NEXT_PHASE', payload: next });
+      } else {
+        playSound(settings.focusSound);
+        playNotification('计划完成！', '所有专注时间已完成', settings.notifications);
+      }
+    }
+  }, [timerState.status, timerState.timeRemaining, timerState.phase, timerState.currentRound, timerState.scheduleIndex, settings, limitedSchedule]);
+
+  // ── Recording effect ──
+  // Records elapsed focus time at phase boundaries (pause, completion)
+  // Skip callback sets recordingGuardRef to prevent double-recording
+
   const addOrUpdateHistory = useCallback((date, taskId, duration) => {
-    // 确保 date 有值，如果为 undefined 则使用当前日期
     const validDate = date || new Date().toLocaleDateString('zh-CN');
-
     setHistory(prev => {
-      // 将 null 转换为 'unassigned' 字符串，作为独立的任务ID
       const normalizedTaskId = taskId || 'unassigned';
-
       const existingIndex = prev.findIndex(
         item => item.date === validDate && item.taskId === normalizedTaskId
       );
 
       if (existingIndex >= 0) {
-        // 更新现有记录
         const updated = [...prev];
         updated[existingIndex] = {
           ...updated[existingIndex],
@@ -173,349 +311,139 @@ export function PomodoroProvider({ children }) {
           updatedAt: new Date().toISOString(),
         };
         return updated;
-      } else {
-        // 创建新记录
-        return [
-          ...prev,
-          {
-            id: `${validDate}-${normalizedTaskId}`,
-            date: validDate,
-            taskId: normalizedTaskId,
-            duration,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        ];
       }
+
+      return [
+        ...prev,
+        {
+          id: `${validDate}-${normalizedTaskId}`,
+          date: validDate,
+          taskId: normalizedTaskId,
+          duration,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
     });
   }, []);
 
-  const switchToNextPhase = useCallback(() => {
-    setTimerState(prev => {
-      // 防止重复触发：如果阶段没有变化，不执行
-      if (lastPhaseRef.current === `${prev.phase}-${prev.currentRound}-${prev.timeRemaining}`) {
-        return prev;
-      }
-
-      if (settings.mode === 'limited' && limitedSchedule) {
-        const nextIndex = prev.scheduleIndex + 1;
-        if (nextIndex >= limitedSchedule.length) {
-          playSound(settings.focusSound);
-          playNotification('计划完成！', '所有专注时间已完成', settings.notifications);
-          lastPhaseRef.current = `completed-${Date.now()}`;
-          return {
-            ...prev,
-            isRunning: false,
-            timeRemaining: 0,
-          };
-        }
-
-        const nextItem = limitedSchedule[nextIndex];
-        if (nextItem.phase !== 'focus') {
-          // 专注结束，进入休息
-          playSound(settings.focusSound);
-          playNotification('专注完成！', nextItem.phase === 'longBreak' ? '开始长休息' : '开始短休息', settings.notifications);
-          lastPhaseRef.current = `${nextItem.phase}-${nextItem.round}-${nextItem.duration}`;
-          return {
-            ...prev,
-            isRunning: settings.autoSwitch,
-            phase: nextItem.phase,
-            timeRemaining: nextItem.duration,
-            currentRound: nextItem.round,
-            scheduleIndex: nextIndex,
-          };
-        } else {
-          // 休息结束，进入专注
-          playSound(settings.breakSound);
-          playNotification('休息结束！', `开始第 ${nextItem.round} 轮专注`, settings.notifications);
-          lastPhaseRef.current = `${nextItem.phase}-${nextItem.round}-${nextItem.duration}`;
-          return {
-            ...prev,
-            isRunning: settings.autoSwitch,
-            phase: nextItem.phase,
-            timeRemaining: nextItem.duration,
-            currentRound: nextItem.round,
-            scheduleIndex: nextIndex,
-          };
-        }
-      }
-
-      const { phase, currentRound } = prev;
-
-      if (phase === 'focus') {
-        // 专注结束，进入休息
-        const isLongBreak = currentRound % settings.pomodoroRounds === 0;
-        const nextPhase = isLongBreak ? 'longBreak' : 'shortBreak';
-        const nextTime = isLongBreak ? settings.longBreakTime : settings.shortBreakTime;
-
-        playSound(settings.focusSound);
-        playNotification('专注完成！', isLongBreak ? '开始长休息' : '开始短休息', settings.notifications);
-        lastPhaseRef.current = `${nextPhase}-${currentRound}-${nextTime}`;
-
-        return {
-          ...prev,
-          isRunning: settings.autoSwitch,
-          phase: nextPhase,
-          timeRemaining: nextTime,
-        };
-      } else {
-        // 休息结束，进入专注
-        const nextRound = prev.currentRound + 1;
-
-        playSound(settings.breakSound);
-        playNotification('休息结束！', `开始第 ${nextRound} 轮专注`, settings.notifications);
-        lastPhaseRef.current = `focus-${nextRound}-${settings.focusTime}`;
-
-        return {
-          ...prev,
-          isRunning: settings.autoSwitch,
-          currentRound: nextRound,
-          phase: 'focus',
-          timeRemaining: settings.focusTime,
-        };
-      }
-    });
-  }, [settings, limitedSchedule]);
-
   useEffect(() => {
-    if (timerState.isRunning && timerState.phase === 'focus') {
-      if (!currentSessionStart) {
-        setCurrentSessionStart(Date.now());
-        // 暂停后恢复时不重置 secondsRecordedRef（保留已累计秒数），
-        // 其重置仅在阶段结束时进行（completion/skip/reset）
-      }
-
-      intervalRef.current = setInterval(() => {
-        let completed = false;
-        let taskInfo = null;
-
-        setTimerState(prev => {
-          if (prev.timeRemaining <= 1) {
-            clearInterval(intervalRef.current);
-
-            if (prev.phase === 'focus') {
-              taskInfo = {
-                taskId: prev.taskId,
-                scheduleIndex: prev.scheduleIndex,
-              };
-            }
-
-            completed = true;
-
-            return {
-              ...prev,
-              isRunning: false,
-              timeRemaining: 0,
-            };
-          }
-
-          const elapsedSeconds = settings.focusTime - prev.timeRemaining;
-          const elapsedFullMinutes = Math.floor(elapsedSeconds / 60);
-          const targetRecorded = elapsedFullMinutes * 60;
-          const toRecord = targetRecorded - secondsRecordedRef.current;
-
-          if (toRecord > 0) {
-            const date = new Date().toLocaleDateString('zh-CN');
-            addOrUpdateHistory(date, prev.taskId, toRecord);
-            secondsRecordedRef.current += toRecord;
-          }
-
-          return {
-            ...prev,
-            timeRemaining: prev.timeRemaining - 1,
-          };
-        });
-
-        // 所有副作用移出 updater，避免 StrictMode 重复调用问题
-        if (completed) {
-          if (taskInfo) {
-            const actualDuration = settings.mode === 'limited' && limitedSchedule
-              ? limitedSchedule[taskInfo.scheduleIndex]?.duration || settings.focusTime
-              : settings.focusTime;
-            const remainingSeconds = actualDuration - secondsRecordedRef.current;
-            if (remainingSeconds > 0) {
-              const date = new Date().toLocaleDateString('zh-CN');
-              addOrUpdateHistory(date, taskInfo.taskId, remainingSeconds);
-              secondsRecordedRef.current += remainingSeconds;
-            }
-          }
-          setCurrentSessionStart(null);
-          secondsRecordedRef.current = 0;
-        }
-      }, 1000);
-    } else if (timerState.isRunning && timerState.phase !== 'focus') {
-      intervalRef.current = setInterval(() => {
-        setTimerState(prev => {
-          if (prev.timeRemaining <= 1) {
-            clearInterval(intervalRef.current);
-            return {
-              ...prev,
-              isRunning: false,
-              timeRemaining: 0,
-            };
-          }
-          return {
-            ...prev,
-            timeRemaining: prev.timeRemaining - 1,
-          };
-        });
-      }, 1000);
-    } else {
-      clearInterval(intervalRef.current);
-      if (currentSessionStart && timerState.phase === 'focus') {
-        // 暂停时记录未记录的剩余时间（从上次记录到现在的差值）
-        const elapsed = Math.floor((Date.now() - currentSessionStart) / 1000);
-        const toRecord = elapsed - secondsRecordedRef.current;
-        if (toRecord > 0) {
-          const date = new Date().toLocaleDateString('zh-CN');
-          addOrUpdateHistory(date, timerState.taskId, toRecord);
-          secondsRecordedRef.current += toRecord;
-        }
-        setCurrentSessionStart(null);
-        // 注意：secondsRecordedRef 不重置，以便继续后正确计算
-      }
+    if (timerState.phase !== 'focus') {
+      lastRecordedSecondsRef.current = 0;
+      recordingGuardRef.current = false;
+      return;
     }
 
-    return () => clearInterval(intervalRef.current);
-  }, [timerState.isRunning, timerState.phase, settings.focusTime, settings.mode, limitedSchedule, currentSessionStart, timerState.taskId]);
-
-  useEffect(() => {
-    if (timerState.timeRemaining === 0 && !timerState.isRunning) {
-      switchToNextPhase();
+    // Skip recording if this phase end was already handled by skip callback
+    if (recordingGuardRef.current) {
+      return; // don't reset guard here — let phase change (above) clear it
     }
-  }, [timerState.timeRemaining, timerState.isRunning, switchToNextPhase]);
+
+    // Record at phase boundaries: pause or completion
+    if (timerState.status === 'paused' || timerState.status === 'idle') {
+      const phaseDuration = getPhaseDuration('focus', settings);
+      const elapsed = phaseDuration - timerState.timeRemaining;
+      const toRecord = Math.max(0, elapsed - lastRecordedSecondsRef.current);
+      if (toRecord > 0) {
+        const date = new Date().toLocaleDateString('zh-CN');
+        addOrUpdateHistory(date, timerState.taskId, toRecord);
+        lastRecordedSecondsRef.current += toRecord;
+      }
+    }
+  }, [timerState.status, timerState.phase, settings, addOrUpdateHistory]);
+
+  // ── Actions ──
 
   const startTimer = useCallback(() => {
-    setTimerState(prev => {
-      // 如果已经在运行，直接返回
-      if (prev.isRunning) return prev;
-
-      // 如果时间剩余为 0，说明已经结束，需要重新初始化
-      if (prev.timeRemaining === 0) {
-        if (settings.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
-          const firstItem = limitedSchedule[0];
-          return {
-            ...prev,
-            isRunning: true,
-            phase: firstItem.phase,
-            timeRemaining: firstItem.duration,
-            currentRound: firstItem.round,
-            scheduleIndex: 0,
-          };
-        }
-        return {
-          ...prev,
-          isRunning: true,
-          timeRemaining: settings.focusTime,
-          currentRound: 1,
-          phase: 'focus',
-          scheduleIndex: 0,
-        };
-      }
-
-      // 暂停后继续，保持当前状态不变，只将 isRunning 设为 true
-      return { ...prev, isRunning: true };
-    });
-  }, [settings.mode, settings.focusTime, limitedSchedule]);
+    if (timerState.timeRemaining <= 0) {
+      // 从完成态重新开始：重置到初始状态并自动运行
+      lastRecordedSecondsRef.current = 0;
+      recordingGuardRef.current = false;
+      const fresh = initialPhaseState(settings, limitedSchedule);
+      dispatch({ type: 'RESET', payload: { ...fresh, status: 'running' } });
+    } else {
+      dispatch({ type: 'START' });
+    }
+  }, [timerState.timeRemaining, settings, limitedSchedule]);
 
   const pauseTimer = useCallback(() => {
-    setTimerState(prev => ({ ...prev, isRunning: false }));
+    dispatch({ type: 'PAUSE' });
   }, []);
 
   const resetTimer = useCallback(() => {
-    secondsRecordedRef.current = 0;
-    setTimerState(prev => {
-      // 如果是限时模式且有调度计划，根据计划初始化
-      if (settings.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
-        const firstItem = limitedSchedule[0];
-        return {
-          ...prev,
-          isRunning: false,
-          phase: firstItem.phase,
-          timeRemaining: firstItem.duration,
-          currentRound: firstItem.round,
-          scheduleIndex: 0,
-        };
+    if (timerState.phase === 'focus' && (timerState.status === 'running' || timerState.status === 'paused')) {
+      const phaseDuration = getPhaseDuration('focus', settings);
+      const elapsed = phaseDuration - timerState.timeRemaining;
+      const toRecord = Math.max(0, elapsed - lastRecordedSecondsRef.current);
+      if (toRecord > 0) {
+        const date = new Date().toLocaleDateString('zh-CN');
+        addOrUpdateHistory(date, timerState.taskId, toRecord);
+        lastRecordedSecondsRef.current += toRecord;
       }
-      // 自由模式，使用默认值
-      return {
-        ...prev,
-        isRunning: false,
-        timeRemaining: settings.focusTime,
-        currentRound: 1,
-        phase: 'focus',
-        scheduleIndex: 0,
-      };
-    });
+    }
+    recordingGuardRef.current = false;
+    const fresh = initialPhaseState(settings, limitedSchedule);
+    dispatch({ type: 'RESET', payload: fresh });
     localStorage.removeItem(TIMER_STATE_KEY);
-  }, [settings.focusTime, settings.mode, limitedSchedule]);
+  }, [timerState, settings, addOrUpdateHistory]);
 
   const skipPhase = useCallback(() => {
-    if (timerState.phase === 'focus') {
-      if (timerState.isRunning) {
-        // 跳过时基于累计记录差值记录未记部分
-        const actualDuration = settings.mode === 'limited' && limitedSchedule
-          ? limitedSchedule[timerState.scheduleIndex]?.duration || settings.focusTime
-          : settings.focusTime;
-        const totalElapsed = actualDuration - timerState.timeRemaining;
-        const toRecord = totalElapsed - secondsRecordedRef.current;
-        if (toRecord > 0) {
-          const date = new Date().toLocaleDateString('zh-CN');
-          addOrUpdateHistory(date, timerState.taskId, toRecord);
-          secondsRecordedRef.current += toRecord;
-        }
+    if (timerState.phase === 'focus' && timerState.status === 'running') {
+      const phaseDuration = getPhaseDuration('focus', settings);
+      const elapsed = phaseDuration - timerState.timeRemaining;
+      const toRecord = Math.max(0, elapsed - lastRecordedSecondsRef.current);
+      if (toRecord > 0) {
+        const date = new Date().toLocaleDateString('zh-CN');
+        addOrUpdateHistory(date, timerState.taskId, toRecord);
+        lastRecordedSecondsRef.current += toRecord;
       }
-      // 重置会话状态，确保后续新专注阶段的时间记录正确
-      setCurrentSessionStart(null);
-      secondsRecordedRef.current = 0;
+      // Prevent the recording effect from also recording this phase end
+      recordingGuardRef.current = true;
     }
-    switchToNextPhase();
-  }, [timerState, settings, limitedSchedule, addOrUpdateHistory, switchToNextPhase]);
+    dispatch({ type: 'COMPLETE' });
+  }, [timerState, settings, addOrUpdateHistory]);
 
   const setTaskId = useCallback((taskId) => {
-    setTimerState(prev => ({ ...prev, taskId }));
+    dispatch({ type: 'SET_TASK_ID', payload: taskId });
   }, []);
 
-  // 判断是否为时间相关的设置
-  const isTimeSetting = (key) => {
+  const isTimeSetting = useCallback((key) => {
     return ['focusTime', 'shortBreakTime', 'longBreakTime', 'pomodoroRounds', 'limitedTime', 'mode'].includes(key);
-  };
+  }, []);
 
   const updateSettings = useCallback((newSettings) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
-
-      // 只有当时间相关设置改变时才重置计时器
       const hasTimeSetting = Object.keys(newSettings).some(isTimeSetting);
 
       if (hasTimeSetting) {
-        setTimerState(current => {
-          // 如果计时器未运行且切换到限时模式，需要根据调度计划初始化
-          if (!current.isRunning && updated.mode === 'limited' && limitedSchedule && limitedSchedule.length > 0) {
-            const firstItem = limitedSchedule[0];
-            return {
-              ...current,
-              phase: firstItem.phase,
-              timeRemaining: firstItem.duration,
-              currentRound: firstItem.round,
-              scheduleIndex: 0,
-            };
-          }
-
-          // 其他情况，只重置时间和 scheduleIndex
-          return {
-            ...current,
-            timeRemaining: updated.focusTime,
-            scheduleIndex: 0,
-          };
-        });
+        // Reset timer state when time settings change
+        lastRecordedSecondsRef.current = 0;
+        recordingGuardRef.current = false;
+        // Recalculate limitedSchedule for the reset
+        const newLimitedSchedule = updated.mode === 'limited'
+          ? calculateLimitedSchedule(updated.limitedTime * 60, updated)
+          : null;
+        const fresh = initialPhaseState(updated, newLimitedSchedule);
+        dispatch({ type: 'RESET', payload: fresh });
+        localStorage.removeItem(TIMER_STATE_KEY);
       }
 
       return updated;
     });
-  }, [limitedSchedule]);
+  }, [isTimeSetting]);
 
-  // 计算今日总专注时间
+  // ── Derived values ──
+
+  const publicTimerState = useMemo(() => ({
+    isRunning: timerState.status === 'running',
+    timeRemaining: timerState.timeRemaining,
+    currentRound: timerState.currentRound,
+    phase: timerState.phase,
+    taskId: timerState.taskId,
+    scheduleIndex: timerState.scheduleIndex,
+  }), [timerState]);
+
   const totalDailyTime = useMemo(() => {
     const today = new Date().toLocaleDateString('zh-CN');
     return history
@@ -523,21 +451,16 @@ export function PomodoroProvider({ children }) {
       .reduce((sum, h) => sum + (h.duration || 0), 0);
   }, [history]);
 
-  // 计算今日各任务的专注时间统计
   const dailyTaskStats = useMemo(() => {
     const today = new Date().toLocaleDateString('zh-CN');
     const todayHistory = history.filter(h => h.date === today);
-
     const stats = {};
     todayHistory.forEach(h => {
-      // taskId 已经是 'unassigned' 或具体的任务ID
       stats[h.taskId] = (stats[h.taskId] || 0) + (h.duration || 0);
     });
-
     return stats;
   }, [history]);
 
-  // 计算各任务的总专注时间
   const taskTotalTimes = useMemo(() => {
     const times = {};
     history.forEach(h => {
@@ -547,12 +470,13 @@ export function PomodoroProvider({ children }) {
     });
     return times;
   }, [history]);
-  const isLocked = timerState.isRunning || (settings.mode === 'limited' && timerState.scheduleIndex > 0);
+
+  const isLocked = timerState.status === 'running' || (settings.mode === 'limited' && timerState.scheduleIndex > 0);
 
   return (
     <PomodoroContext.Provider
       value={{
-        timerState,
+        timerState: publicTimerState,
         settings,
         history,
         totalDailyTime,
@@ -582,3 +506,4 @@ export function usePomodoroContext() {
 }
 
 export { defaultSettings };
+

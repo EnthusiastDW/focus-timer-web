@@ -346,7 +346,7 @@ export default function PomodoroTimer({ onNavigate }) {
             whiteSpace: 'nowrap',
           }}
         >
-          {timerState.isRunning ? '暂停' : '开始'}
+          {timerState.isRunning ? '暂停' : timerState.timeRemaining > 0 && timerState.timeRemaining < phaseTime ? '继续' : '开始'}
         </Button>
         {/* 只有在计时进行中或已经部分完成时才显示跳过按钮 */}
         {(timerState.isRunning || timerState.timeRemaining < phaseTime) && (
