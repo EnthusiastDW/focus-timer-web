@@ -172,6 +172,10 @@ function timerReducer(state, action) {
     case 'SET_TASK_ID':
       return { ...state, taskId: action.payload };
 
+    case 'SYNC_TIME':
+      if (state.status !== 'running') return state;
+      return { ...state, timeRemaining: Math.max(0, action.payload) };
+
     default:
       return state;
   }
@@ -225,14 +229,34 @@ export function PomodoroProvider({ children }) {
     requestNotificationPermission();
   }, []);
 
+  // ── Chrome extension cross-device sync ──
+  // Sync settings via chrome.storage.sync so they persist across devices
+
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.runtime?.id) return;
+    chrome.storage.sync.get('settings', (result) => {
+      if (result.settings) {
+        setSettings(prev => ({ ...prev, ...result.settings }));
+      }
+    });
+  }, []);
+
   // ── Persistence effects ──
 
   useEffect(() => {
     setStorageItem(SETTINGS_KEY, settings);
+
+    if (typeof chrome !== 'undefined' && chrome.runtime?.id) {
+      chrome.storage.sync.set({ settings }).catch(() => {});
+    }
   }, [settings]);
 
   useEffect(() => {
     setStorageItem(HISTORY_KEY, history);
+
+    if (typeof chrome !== 'undefined' && chrome.runtime?.id) {
+      chrome.storage.local.set({ history }).catch(() => {});
+    }
   }, [history]);
 
   useEffect(() => {
@@ -258,6 +282,104 @@ export function PomodoroProvider({ children }) {
     const id = setInterval(() => dispatch({ type: 'TICK' }), 1000);
     return () => clearInterval(id);
   }, [timerState.status]);
+
+  // ── Wall-clock sync: handle tab background throttling ──
+  // When the tab is hidden, Chrome throttles setInterval so ticks are lost.
+  // Track the real session start time and correct on visibility change.
+
+  const timerSessionRef = useRef(null);
+  const timeRemainingRef = useRef(timerState.timeRemaining);
+
+  // Keep a mutable ref to the latest timeRemaining for event handlers
+  useEffect(() => {
+    timeRemainingRef.current = timerState.timeRemaining;
+  });
+
+  // Record session start whenever the timer transitions to 'running'
+  useEffect(() => {
+    if (timerState.status === 'running') {
+      timerSessionRef.current = {
+        startTime: Date.now(),
+        startTimeRemaining: timerState.timeRemaining,
+      };
+    } else if (timerState.status !== 'paused') {
+      timerSessionRef.current = null;
+    }
+  }, [timerState.status]);
+
+  // When the tab becomes visible, correct for any wall-clock drift
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) return;
+      const session = timerSessionRef.current;
+      if (!session) return;
+
+      const wallElapsed = Math.floor((Date.now() - session.startTime) / 1000);
+      const expectedRemaining = Math.max(0, session.startTimeRemaining - wallElapsed);
+      const drift = timeRemainingRef.current - expectedRemaining;
+
+      // More than 1 second of drift -> tab was backgrounded and ticks were lost
+      if (drift > 1) {
+        dispatch({ type: 'SYNC_TIME', payload: expectedRemaining });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  // ── Chrome extension background sync ──
+  // When running as a Chrome extension, keep the background service worker
+  // informed so it can fire alarms and notifications even when the tab is hidden.
+
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.runtime?.id) return;
+
+    if (timerState.status === 'running') {
+      const endTime = Date.now() + timerState.timeRemaining * 1000;
+      chrome.runtime.sendMessage({ type: 'START_TIMER', endTime }).catch(() => {});
+    } else if (timerState.status === 'paused') {
+      chrome.runtime.sendMessage({ type: 'PAUSE_TIMER' }).catch(() => {});
+    } else {
+      chrome.runtime.sendMessage({ type: 'RESET_TIMER' }).catch(() => {});
+    }
+  }, [timerState.status]);
+
+  // Listen for TIME_UP from background when alarm fires while app is open
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.runtime?.id) return;
+
+    const handleMessage = (message) => {
+      if (message.type === 'TIME_UP') {
+        dispatch({ type: 'COMPLETE' });
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, []);
+
+  // ── Extension toolbar badge ──
+  // Show live countdown or phase indicator on the extension icon
+
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome.runtime?.id) return;
+
+    if (timerState.status === 'running') {
+      const mins = Math.ceil(timerState.timeRemaining / 60);
+      const secs = timerState.timeRemaining % 60;
+      const badge = mins > 0 ? String(mins) : `:${String(secs).padStart(2, '0')}`;
+      chrome.action.setBadgeText({ text: badge }).catch(() => {});
+      chrome.action.setBadgeBackgroundColor({
+        color: timerState.phase === 'focus' ? '#2563eb' : '#16a34a',
+      }).catch(() => {});
+    } else if (timerState.status === 'paused') {
+      chrome.action.setBadgeText({ text: '⏸' }).catch(() => {});
+      chrome.action.setBadgeBackgroundColor({ color: '#f59e0b' }).catch(() => {});
+    } else {
+      chrome.action.setBadgeText({ text: '' }).catch(() => {});
+    }
+  }, [timerState.status, timerState.timeRemaining, timerState.phase]);
 
   // ── Completion detection effect ──
   // When timeRemaining hits 0 while running, mark phase as complete

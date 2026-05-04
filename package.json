@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:chrome": "vite build --config vite.config.chrome.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "npx playwright test",
@@ -29,6 +30,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "sharp": "^0.34.5",
     "vite": "^8.0.10"
   }
 }

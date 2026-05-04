@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Focus Timer - 番茄钟专注管理工具",
+  "short_name": "Focus Timer",
+  "version": "1.0.0",
+  "description": "专注番茄钟计时器，帮助您提高工作效率，管理任务和时间。支持自由模式和限时模式，提供统计分析和桌面通知功能。",
+  "permissions": [
+    "storage",
+    "notifications",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Focus Timer - 番茄钟",
+    "default_icon": "icons/icon-16.png"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline'"
+  }
+}
