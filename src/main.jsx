@@ -5,6 +5,14 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { PomodoroProvider } from './contexts/PomodoroContext';
 import { TaskProvider } from './contexts/TaskContext';
 import App from './App';
+import { initTabSafeTimers } from '@vorthain/tab-safe-timers';
+
+// Initialize tab-safe timers to ensure accurate timing when tabs are in background
+try {
+  initTabSafeTimers();
+} catch (error) {
+  console.warn('Tab-safe timers not available:', error);
+}
 
 const theme = createTheme({
   palette: {

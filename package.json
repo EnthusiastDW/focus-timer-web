@@ -17,6 +17,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.0.0",
     "@mui/material": "^9.0.0",
+    "@vorthain/tab-safe-timers": "^0.2.6",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },

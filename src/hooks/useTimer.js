@@ -1,9 +1,16 @@
 import { useEffect } from 'react';
 
+/**
+ * Custom hook for timer functionality
+ * Uses tab-safe timers (initialized in main.jsx) to ensure accurate timing
+ * even when the browser tab is in the background
+ */
 export function useTimer(isRunning, timeRemaining, setTimeRemaining, onComplete) {
   useEffect(() => {
     if (!isRunning) return;
 
+    // This setInterval uses tab-safe timers (via @vorthain/tab-safe-timers)
+    // which continue running accurately when browser tabs are in the background
     const interval = setInterval(() => {
       setTimeRemaining(prev => {
         if (prev <= 1) {

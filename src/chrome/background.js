@@ -16,15 +16,30 @@ chrome.notifications.onClicked.addListener((notificationId) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== 'timer-phase-end') return;
 
-  chrome.notifications.create({
-    type: 'basic',
-    iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
-    title: '专注时间到！',
-    message: '该休息一下了',
-  });
+  // Get current settings to check if notifications are enabled and get phase info
+  chrome.storage.sync.get(['settings'], (result) => {
+    const settings = result.settings || {};
+    
+    // Only show notification if enabled in settings
+    if (settings.notifications === false) {
+      // Still notify the app tab even if notifications are disabled
+      chrome.runtime.sendMessage({ type: 'TIME_UP' }).catch(() => {});
+      return;
+    }
 
-  // Notify any open app tab so it can catch up immediately
-  chrome.runtime.sendMessage({ type: 'TIME_UP' }).catch(() => {});
+    // Determine the next phase to show appropriate message
+    // We'll send TIME_UP first so the app can update its state,
+    // then show a generic notification
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
+      title: 'Focus Timer',
+      message: '阶段时间到！',
+    });
+
+    // Notify any open app tab so it can catch up immediately
+    chrome.runtime.sendMessage({ type: 'TIME_UP' }).catch(() => {});
+  });
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -44,14 +59,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case 'SHOW_NOTIFICATION':
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
-        title: message.title || 'Focus Timer',
-        message: message.body || '',
+      // Check if notifications are enabled in settings
+      chrome.storage.sync.get(['settings'], (result) => {
+        const settings = result.settings || {};
+        
+        // Only show notification if enabled
+        if (settings.notifications !== false) {
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: chrome.runtime.getURL('icons/icon-128.png'),
+            title: message.title || 'Focus Timer',
+            message: message.body || '',
+          });
+        }
+        sendResponse({ success: true });
       });
-      sendResponse({ success: true });
-      break;
+      return true;
   }
   return true;
 });

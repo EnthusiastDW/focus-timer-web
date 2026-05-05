@@ -5,9 +5,16 @@ import {
   Tabs,
   Tab,
   Paper,
+  Button,
+  Box,
 } from '@mui/material';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import FeedbackForm from './FeedbackForm';
 import FeedbackList from './FeedbackList';
+
+// GitHub Issues URL - 过滤为当前项目
+// 使用 label 参数筛选，GitHub 标签搜索需要使用引号包裹含特殊字符的标签
+const GITHUB_ISSUES_URL = 'https://github.com/EnthusiastDW/feedback/issues?q=is%3Aissue+label%3A%22project%3Afocus-timer%22';
 
 export default function FeedbackPage() {
   const [tab, setTab] = useState(0);
@@ -28,9 +35,19 @@ export default function FeedbackPage() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        反馈
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4">
+          反馈
+        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<OpenInNewIcon />}
+          onClick={() => window.open(GITHUB_ISSUES_URL, '_blank')}
+          sx={{ textTransform: 'none' }}
+        >
+          查看 GitHub Issues
+        </Button>
+      </Box>
 
       <Paper sx={{ mb: 3 }}>
         <Tabs value={tab} onChange={handleTabChange} centered>
