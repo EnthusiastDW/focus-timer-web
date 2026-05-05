@@ -2,8 +2,19 @@ const audioContext = typeof window !== 'undefined' ? new (window.AudioContext ||
 let lastNotificationTime = 0;
 let lastNotificationKey = '';
 
-export function playSound(type = 'default') {
+export function playSound(type = 'default', repeatCount = 2) {
   if (!audioContext || type === 'none') return;
+
+  // 根据重复次数播放声音
+  for (let i = 0; i < repeatCount; i++) {
+    setTimeout(() => {
+      playSingleSound(type);
+    }, i * 1000); // 每次间隔1秒
+  }
+}
+
+// 播放单次声音的内部函数
+function playSingleSound(type) {
 
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();

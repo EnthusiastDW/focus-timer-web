@@ -16,6 +16,7 @@ const defaultSettings = {
   autoSwitch: true,
   focusSound: 'default',
   breakSound: 'default',
+  soundRepeatCount: 2,
   mode: 'free',
   limitedTime: 120,
   notifications: true,
@@ -399,15 +400,15 @@ export function PomodoroProvider({ children }) {
       const next = computeNextPhase(timerState, settings, limitedSchedule);
       if (next) {
         if (timerState.phase === 'focus') {
-          playSound(settings.focusSound);
+          playSound(settings.focusSound, settings.soundRepeatCount);
           playNotification('专注完成！', next.phase === 'longBreak' ? '开始长休息' : '开始短休息', settings.notifications);
         } else {
-          playSound(settings.breakSound);
+          playSound(settings.breakSound, settings.soundRepeatCount);
           playNotification('休息结束！', `开始第 ${next.round} 轮专注`, settings.notifications);
         }
         dispatch({ type: 'NEXT_PHASE', payload: next });
       } else {
-        playSound(settings.focusSound);
+        playSound(settings.focusSound, settings.soundRepeatCount);
         playNotification('计划完成！', '所有专注时间已完成', settings.notifications);
       }
     }

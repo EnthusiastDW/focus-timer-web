@@ -37,6 +37,7 @@ export default function SettingsDialog({ open, onClose }) {
     autoSwitch: settings.autoSwitch,
     focusSound: settings.focusSound || 'default',
     breakSound: settings.breakSound || 'default',
+    soundRepeatCount: settings.soundRepeatCount || 2,
     notifications: settings.notifications !== undefined ? settings.notifications : true,
   });
 
@@ -52,6 +53,7 @@ export default function SettingsDialog({ open, onClose }) {
         autoSwitch: settings.autoSwitch,
         focusSound: settings.focusSound || 'default',
         breakSound: settings.breakSound || 'default',
+        soundRepeatCount: settings.soundRepeatCount || 2,
         notifications: settings.notifications !== undefined ? settings.notifications : true,
       });
     }
@@ -65,6 +67,7 @@ export default function SettingsDialog({ open, onClose }) {
         autoSwitch: form.autoSwitch,
         focusSound: form.focusSound,
         breakSound: form.breakSound,
+        soundRepeatCount: form.soundRepeatCount,
       });
     } else {
       // 未锁定时保存所有设置
@@ -77,6 +80,7 @@ export default function SettingsDialog({ open, onClose }) {
         autoSwitch: form.autoSwitch,
         focusSound: form.focusSound,
         breakSound: form.breakSound,
+        soundRepeatCount: form.soundRepeatCount,
         notifications: form.notifications,
       });
     }
@@ -93,6 +97,7 @@ export default function SettingsDialog({ open, onClose }) {
       autoSwitch: defaultSettings.autoSwitch,
       focusSound: defaultSettings.focusSound,
       breakSound: defaultSettings.breakSound,
+      soundRepeatCount: defaultSettings.soundRepeatCount,
       notifications: defaultSettings.notifications,
     });
   };
@@ -393,6 +398,15 @@ export default function SettingsDialog({ open, onClose }) {
               ))}
             </Select>
           </FormControl>
+          <TextField
+            label="铃声播放次数"
+            type="number"
+            fullWidth
+            value={form.soundRepeatCount}
+            onChange={(e) => setForm({ ...form, soundRepeatCount: Number(e.target.value) })}
+            inputProps={{ min: 1, max: 5 }}
+            helperText="范围：1-5 次，默认 2 次"
+          />
         </Box>
       </DialogContent>
       <DialogActions>
