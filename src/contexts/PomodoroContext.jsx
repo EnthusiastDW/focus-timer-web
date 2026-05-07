@@ -520,7 +520,9 @@ export function PomodoroProvider({ children }) {
         addOrUpdateHistory(date, timerState.taskId, toRecord);
         lastRecordedSecondsRef.current += toRecord;
       }
-      // Prevent the recording effect from also recording this phase end
+      recordingGuardRef.current = true;
+    } else if (timerState.phase === 'focus' && timerState.status === 'paused') {
+      // 暂停时已记录过时间，跳过时防止重复记录
       recordingGuardRef.current = true;
     }
     dispatch({ type: 'COMPLETE' });
