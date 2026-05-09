@@ -240,18 +240,20 @@ export default function PomodoroTimer({ onNavigate }) {
           }}
         >
           {/* 阶段标签 */}
-          <Chip
-            icon={currentPhase.icon}
-            label={currentPhase.label}
-            size="small"
-            sx={{
-              mb: 2,
-              bgcolor: alpha('#fff', 0.2),
-              color: 'white',
-              fontWeight: 500,
-              '& .MuiChip-icon': { color: 'white' },
-            }}
-          />
+          {timerState.timeRemaining !== phaseTime && (
+            <Chip
+              icon={currentPhase.icon}
+              label={currentPhase.label}
+              size="small"
+              sx={{
+                mb: 2,
+                bgcolor: alpha('#fff', 0.2),
+                color: 'white',
+                fontWeight: 500,
+                '& .MuiChip-icon': { color: 'white' },
+              }}
+            />
+          )}
           
           {/* 倒计时时间 */}
           <Typography
