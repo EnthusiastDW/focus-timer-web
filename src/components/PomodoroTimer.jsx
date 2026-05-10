@@ -240,7 +240,7 @@ export default function PomodoroTimer({ onNavigate }) {
           }}
         >
           {/* 阶段标签 */}
-          {timerState.timeRemaining !== phaseTime && (
+          {(timerState.isRunning || timerState.timeRemaining !== phaseTime) && (
             <Chip
               icon={currentPhase.icon}
               label={currentPhase.label}
