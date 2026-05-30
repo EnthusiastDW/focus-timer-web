@@ -197,6 +197,17 @@ function loadSavedTimerState(settings, limitedSchedule) {
         taskId: saved.taskId || null,
       };
     }
+    // Timer expired while page was closed — save partial focus time
+    if (saved.phase === 'focus' && elapsed > 0) {
+      const phaseDuration = getPhaseDuration('focus', settings);
+      const focusedTime = Math.min(phaseDuration, elapsed);
+      const date = new Date().toLocaleDateString('zh-CN');
+      setStorageItem('focus-timer-pending-record', {
+        date,
+        taskId: saved.taskId || 'unassigned',
+        duration: focusedTime,
+      });
+    }
   }
   return initialPhaseState(settings, limitedSchedule);
 }
@@ -226,8 +237,32 @@ export function PomodoroProvider({ children }) {
   const lastRecordedSecondsRef = useRef(0);
   const recordingGuardRef = useRef(false);
 
+  // ── Today date tracking (cross-day safe) ──
+  // Ensures totalDailyTime/dailyTaskStats refresh when the date rolls over
+  // without requiring a page refresh.
+
+  const [today, setToday] = useState(() => new Date().toLocaleDateString('zh-CN'));
+
   useEffect(() => {
+    const updateToday = () => {
+      setToday(prev => {
+        const next = new Date().toLocaleDateString('zh-CN');
+        return prev !== next ? next : prev;
+      });
+    };
+
+    // Re-check when the tab becomes visible (user returns after midnight)
+    document.addEventListener('visibilitychange', updateToday);
+
+    // Periodic check (every 30s) to catch date change while page stays visible
+    const id = setInterval(updateToday, 30000);
+
     requestNotificationPermission();
+
+    return () => {
+      document.removeEventListener('visibilitychange', updateToday);
+      clearInterval(id);
+    };
   }, []);
 
   // ── Chrome extension cross-device sync ──
@@ -450,6 +485,16 @@ export function PomodoroProvider({ children }) {
     });
   }, []);
 
+  // ── Flush pending focus-time lost on page refresh ──
+
+  useEffect(() => {
+    const pending = getStorageItem('focus-timer-pending-record', null);
+    if (pending) {
+      addOrUpdateHistory(pending.date, pending.taskId, pending.duration);
+      localStorage.removeItem('focus-timer-pending-record');
+    }
+  }, [addOrUpdateHistory]);
+
   useEffect(() => {
     if (timerState.phase !== 'focus') {
       lastRecordedSecondsRef.current = 0;
@@ -570,21 +615,19 @@ export function PomodoroProvider({ children }) {
   }), [timerState]);
 
   const totalDailyTime = useMemo(() => {
-    const today = new Date().toLocaleDateString('zh-CN');
     return history
       .filter(h => h.date === today)
       .reduce((sum, h) => sum + (h.duration || 0), 0);
-  }, [history]);
+  }, [history, today]);
 
   const dailyTaskStats = useMemo(() => {
-    const today = new Date().toLocaleDateString('zh-CN');
     const todayHistory = history.filter(h => h.date === today);
     const stats = {};
     todayHistory.forEach(h => {
       stats[h.taskId] = (stats[h.taskId] || 0) + (h.duration || 0);
     });
     return stats;
-  }, [history]);
+  }, [history, today]);
 
   const taskTotalTimes = useMemo(() => {
     const times = {};
