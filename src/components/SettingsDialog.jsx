@@ -20,10 +20,12 @@ import {
   alpha,
   Alert,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { usePomodoroContext, defaultSettings } from '../contexts/PomodoroContext';
 import { formatDuration } from '../hooks/useTimer';
 
 export default function SettingsDialog({ open, onClose }) {
+  const { t } = useTranslation();
   const { settings, updateSettings, isLocked } = usePomodoroContext();
   const [notificationPermission, setNotificationPermission] = useState(
     'Notification' in window ? Notification.permission : 'unsupported'
@@ -103,10 +105,10 @@ export default function SettingsDialog({ open, onClose }) {
   };
 
   const sounds = [
-    { value: 'default', label: '默认' },
-    { value: 'bell', label: '铃声' },
-    { value: 'chime', label: '钟声' },
-    { value: 'none', label: '无' },
+    { value: 'default', label: t('settings.sound_default') },
+    { value: 'bell', label: t('settings.sound_bell') },
+    { value: 'chime', label: t('settings.sound_chime') },
+    { value: 'none', label: t('settings.sound_none') },
   ];
 
   const previewSchedule = settings.mode === 'limited' ? calculatePreviewSchedule(form.limitedTime * 60, form) : null;
@@ -156,16 +158,16 @@ export default function SettingsDialog({ open, onClose }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth scroll="paper">
-      <DialogTitle>设置</DialogTitle>
+      <DialogTitle>{t('settings.title')}</DialogTitle>
       <DialogContent sx={{ maxHeight: '70vh', overflowY: 'auto' }}>
         {isLocked && (
           <Alert severity="warning" sx={{ mb: 2 }}>
-            计时进行中，部分设置已锁定
+            {t('settings.locked_warning')}
           </Alert>
         )}
 
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, mt: 1 }}>
-          限时模式设置
+          {t('settings.limited_mode_title')}
         </Typography>
         
         <Paper
@@ -179,21 +181,21 @@ export default function SettingsDialog({ open, onClose }) {
           }}
         >
           <TextField
-            label="总时间（分钟）"
+            label={t('settings.total_minutes')}
             type="number"
             fullWidth
             value={form.limitedTime}
             onChange={(e) => setForm({ ...form, limitedTime: Number(e.target.value) })}
             disabled={isLocked}
             inputProps={{ min: 1 }}
-            helperText={`共 ${form.limitedTime} 分钟`}
+            helperText={t('settings.total_minutes_helper', { count: form.limitedTime })}
           />
         </Paper>
 
         {previewSchedule && previewSchedule.length > 0 && (
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-              轮次预览
+              {t('settings.round_preview')}
             </Typography>
             <Paper
               elevation={0}
@@ -223,10 +225,10 @@ export default function SettingsDialog({ open, onClose }) {
                       fontWeight: 500,
                     }}
                   >
-                    {scheduleItem.phase === 'focus' ? '专注' : scheduleItem.phase === 'longBreak' ? '长休息' : '短休息'}
+                    {scheduleItem.phase === 'focus' ? t('phase.focus') : scheduleItem.phase === 'longBreak' ? t('phase.long_break') : t('phase.short_break')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    第{scheduleItem.round}轮 · {formatDuration(scheduleItem.duration)}
+                    {t('settings.round_label', { round: scheduleItem.round, duration: formatDuration(scheduleItem.duration) })}
                   </Typography>
                 </Box>
               ))}
@@ -235,13 +237,13 @@ export default function SettingsDialog({ open, onClose }) {
         )}
 
         <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>
-          时间设置（分钟）
+          {t('settings.time_settings')}
         </Typography>
         
         <Grid container spacing={2} sx={{ mb: 3 }}>
           <Grid item xs={6} sm={3}>
             <TextField
-              label="专注时间"
+              label={t('settings.focus_time')}
               type="number"
               fullWidth
               value={form.focusTime}
@@ -252,7 +254,7 @@ export default function SettingsDialog({ open, onClose }) {
           </Grid>
           <Grid item xs={6} sm={3}>
             <TextField
-              label="短休息"
+              label={t('settings.short_break')}
               type="number"
               fullWidth
               value={form.shortBreakTime}
@@ -263,7 +265,7 @@ export default function SettingsDialog({ open, onClose }) {
           </Grid>
           <Grid item xs={6} sm={3}>
             <TextField
-              label="长休息"
+              label={t('settings.long_break')}
               type="number"
               fullWidth
               value={form.longBreakTime}
@@ -274,7 +276,7 @@ export default function SettingsDialog({ open, onClose }) {
           </Grid>
           <Grid item xs={6} sm={3}>
             <TextField
-              label="长休息间隔"
+              label={t('settings.long_break_interval')}
               type="number"
               fullWidth
               value={form.pomodoroRounds}
@@ -294,7 +296,7 @@ export default function SettingsDialog({ open, onClose }) {
               onChange={(e) => setForm({ ...form, autoSwitch: e.target.checked })}
             />
           }
-          label="自动切换阶段"
+          label={t('settings.auto_switch')}
           sx={{ mb: 2 }}
         />
 
@@ -324,15 +326,15 @@ export default function SettingsDialog({ open, onClose }) {
           }
           label={
             <Box>
-              <Typography variant="body2">桌面通知</Typography>
+              <Typography variant="body2">{t('settings.desktop_notification')}</Typography>
               <Typography variant="caption" color="text.secondary">
                 {'Notification' in window
                   ? notificationPermission === 'granted' 
-                    ? '（已授权，可随时关闭）' 
+                    ? t('settings.notification_granted') 
                     : notificationPermission === 'denied'
-                      ? '（已被拒绝）'
-                      : '（点击开启以请求权限）'
-                  : '（浏览器不支持）'}
+                      ? t('settings.notification_denied')
+                      : t('settings.notification_prompt')
+                  : t('settings.notification_unsupported')}
               </Typography>
             </Box>
           }
@@ -342,13 +344,13 @@ export default function SettingsDialog({ open, onClose }) {
         {notificationPermission === 'denied' && (
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" sx={{ mb: 1 }}>
-              通知权限已被拒绝，请按以下步骤重新允许：
+              {t('settings.notification_denied_title')}
             </Typography>
             <Box component="ol" sx={{ pl: 2, m: 0 }}>
-              <li>点击浏览器地址栏左侧的🔒锁图标</li>
-              <li>找到“网站设置”或“权限”</li>
-              <li>将“通知”改为“允许”</li>
-              <li>刷新页面后重新开启通知开关</li>
+              <li>{t('settings.notification_step_1')}</li>
+              <li>{t('settings.notification_step_2')}</li>
+              <li>{t('settings.notification_step_3')}</li>
+              <li>{t('settings.notification_step_4')}</li>
             </Box>
           </Alert>
         )}
@@ -358,23 +360,23 @@ export default function SettingsDialog({ open, onClose }) {
             variant="outlined"
             size="small"
             onClick={() => {
-              new Notification('测试通知', {
-                body: '如果您看到这条消息，说明通知功能正常工作！',
+              new Notification(t('settings.send_test'), {
+                body: t('settings.test_body'),
                 icon: '/favicon.svg',
               });
             }}
             sx={{ mb: 2 }}
           >
-            发送测试通知
+            {t('settings.send_test')}
           </Button>
         )}
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <FormControl fullWidth>
-            <InputLabel>专注结束提示音</InputLabel>
+            <InputLabel>{t('settings.focus_end_sound')}</InputLabel>
             <Select
               value={form.focusSound}
-              label="专注结束提示音"
+              label={t('settings.focus_end_sound')}
               onChange={(e) => setForm({ ...form, focusSound: e.target.value })}
             >
               {sounds.map(s => (
@@ -385,10 +387,10 @@ export default function SettingsDialog({ open, onClose }) {
             </Select>
           </FormControl>
           <FormControl fullWidth>
-            <InputLabel>休息结束提示音</InputLabel>
+            <InputLabel>{t('settings.break_end_sound')}</InputLabel>
             <Select
               value={form.breakSound}
-              label="休息结束提示音"
+              label={t('settings.break_end_sound')}
               onChange={(e) => setForm({ ...form, breakSound: e.target.value })}
             >
               {sounds.map(s => (
@@ -399,20 +401,20 @@ export default function SettingsDialog({ open, onClose }) {
             </Select>
           </FormControl>
           <TextField
-            label="铃声播放次数"
+            label={t('settings.sound_repeat')}
             type="number"
             fullWidth
             value={form.soundRepeatCount}
             onChange={(e) => setForm({ ...form, soundRepeatCount: Number(e.target.value) })}
             inputProps={{ min: 1, max: 5 }}
-            helperText="范围：1-5 次，默认 2 次"
+            helperText={t('settings.sound_repeat_helper')}
           />
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleReset} disabled={isLocked}>重置默认</Button>
-        <Button onClick={onClose}>取消</Button>
-        <Button onClick={handleSave} variant="contained">保存</Button>
+        <Button onClick={handleReset} disabled={isLocked}>{t('settings.reset_default')}</Button>
+        <Button onClick={onClose}>{t('settings.cancel')}</Button>
+        <Button onClick={handleSave} variant="contained">{t('settings.save')}</Button>
       </DialogActions>
     </Dialog>
   );

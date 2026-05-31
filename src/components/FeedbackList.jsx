@@ -15,14 +15,18 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { useTranslation } from 'react-i18next';
 import { getFeedbacks, deleteFeedback, FEEDBACK_TYPES, FEEDBACK_STATUSES, updateFeedbackIssue, markFeedbackFailed, updateFeedbackStatus } from '../utils/feedback';
 import { submitToCloudflare } from '../utils/cloudflareFeedback';
 
-const typeLabels = {
-  [FEEDBACK_TYPES.BUG]: '问题报告',
-  [FEEDBACK_TYPES.FEATURE]: '功能建议',
-  [FEEDBACK_TYPES.OTHER]: '其他',
-};
+function getTypeLabel(type, t) {
+  const labels = {
+    [FEEDBACK_TYPES.BUG]: t('feedback.bug'),
+    [FEEDBACK_TYPES.FEATURE]: t('feedback.feature'),
+    [FEEDBACK_TYPES.OTHER]: t('feedback.other'),
+  };
+  return labels[type] || type;
+}
 
 const typeColors = {
   [FEEDBACK_TYPES.BUG]: 'error',
@@ -38,15 +42,19 @@ const statusColors = {
   [FEEDBACK_STATUSES.FAILED]: 'error',
 };
 
-const statusLabels = {
-  [FEEDBACK_STATUSES.DRAFT]: '草稿',
-  [FEEDBACK_STATUSES.PENDING]: '待处理',
-  [FEEDBACK_STATUSES.RESOLVED]: '已解决',
-  [FEEDBACK_STATUSES.REJECTED]: '已拒绝',
-  [FEEDBACK_STATUSES.FAILED]: '提交失败',
-};
+function getStatusLabel(status, t) {
+  const labels = {
+    [FEEDBACK_STATUSES.DRAFT]: t('feedback.status_draft'),
+    [FEEDBACK_STATUSES.PENDING]: t('feedback.status_pending'),
+    [FEEDBACK_STATUSES.RESOLVED]: t('feedback.status_resolved'),
+    [FEEDBACK_STATUSES.REJECTED]: t('feedback.status_rejected'),
+    [FEEDBACK_STATUSES.FAILED]: t('feedback.status_failed'),
+  };
+  return labels[status] || status;
+}
 
 export default function FeedbackList({ onEdit }) {
+  const { t, i18n } = useTranslation();
   const [feedbacks, setFeedbacks] = useState(getFeedbacks());
   const [submittingId, setSubmittingId] = useState(null);
 
@@ -74,7 +82,7 @@ export default function FeedbackList({ onEdit }) {
       console.error('提交失败:', err);
       markFeedbackFailed(feedback.id);
       setFeedbacks(getFeedbacks());
-      alert('提交失败：' + err.message);
+      alert(t('feedback.submit_failed') + err.message);
     } finally {
       setSubmittingId(null);
     }
@@ -88,12 +96,12 @@ export default function FeedbackList({ onEdit }) {
   return (
     <Box sx={{ mt: 2 }}>
       <Typography variant="h6" gutterBottom>
-        反馈列表 ({feedbacks.length})
+        {t('feedback.list_title', { count: feedbacks.length })}
       </Typography>
 
       {feedbacks.length === 0 ? (
         <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-          暂无反馈
+          {t('feedback.no_feedback')}
         </Typography>
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -107,18 +115,18 @@ export default function FeedbackList({ onEdit }) {
                     </Typography>
                     <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
                       <Chip
-                        label={typeLabels[feedback.type]}
+                        label={getTypeLabel(feedback.type, t)}
                         color={typeColors[feedback.type]}
                         size="small"
                       />
                       <Chip
-                        label={statusLabels[feedback.status]}
+                        label={getStatusLabel(feedback.status, t)}
                         color={statusColors[feedback.status]}
                         size="small"
                       />
                     </Box>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      {new Date(feedback.createdAt).toLocaleString('zh-CN')}
+                      {new Date(feedback.createdAt).toLocaleString(i18n.language)}
                     </Typography>
                     {/* 显示详细描述 */}
                     <Typography variant="body2" sx={{ 
@@ -134,7 +142,7 @@ export default function FeedbackList({ onEdit }) {
                     {/* 显示邮箱 */}
                     {feedback.email && (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                        邮箱：{feedback.email}
+                        {t('feedback.email_label')}{feedback.email}
                       </Typography>
                     )}
                   </Box>
@@ -142,7 +150,7 @@ export default function FeedbackList({ onEdit }) {
                     {/* 第一行：操作按钮（编辑、提交、标记、删除） */}
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       {/* 编辑按钮 - 已提交的不能编辑 */}
-                      <Tooltip title={feedback.issueUrl ? '已提交，不能编辑' : '编辑'}>
+                      <Tooltip title={feedback.issueUrl ? t('feedback.cannot_edit') : t('feedback.edit_tooltip')}>
                         <span>
                           <IconButton 
                             size="small" 
@@ -157,7 +165,7 @@ export default function FeedbackList({ onEdit }) {
                       
                       {/* 草稿或失败的反馈显示提交按钮 */}
                       {(feedback.status === FEEDBACK_STATUSES.DRAFT || feedback.status === FEEDBACK_STATUSES.FAILED) && (
-                        <Tooltip title={feedback.status === FEEDBACK_STATUSES.FAILED ? '重新提交' : '提交到 GitHub'}>
+                        <Tooltip title={feedback.status === FEEDBACK_STATUSES.FAILED ? t('feedback.resubmit') : t('feedback.submit_github')}>
                           <IconButton 
                             size="small" 
                             onClick={() => handleSubmitToGitHub(feedback)}
@@ -175,7 +183,7 @@ export default function FeedbackList({ onEdit }) {
                       
                       {/* 标记为已解决 */}
                       {feedback.status !== FEEDBACK_STATUSES.RESOLVED && (
-                        <Tooltip title="标记为已处理">
+                        <Tooltip title={t('feedback.mark_resolved')}>
                           <IconButton 
                             size="small" 
                             onClick={() => handleMarkResolved(feedback.id)}
@@ -186,7 +194,7 @@ export default function FeedbackList({ onEdit }) {
                         </Tooltip>
                       )}
                       
-                      <Tooltip title="删除">
+                      <Tooltip title={t('feedback.delete_tooltip')}>
                         <IconButton size="small" onClick={() => handleDelete(feedback.id)} data-testid="delete-feedback-btn">
                           <DeleteIcon fontSize="small" />
                         </IconButton>
@@ -203,7 +211,7 @@ export default function FeedbackList({ onEdit }) {
                         data-testid="open-issue-btn"
                         sx={{ mt: 0.5 }}
                       >
-                        查看 Issue #{feedback.issueId}
+                        {t('feedback.view_issue', { id: feedback.issueId })}
                       </Button>
                     )}
                   </Box>

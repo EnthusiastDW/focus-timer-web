@@ -1,6 +1,7 @@
 import { createContext, useContext, useReducer, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { getStorageItem, setStorageItem } from '../utils/storage';
 import { playSound, playNotification, requestNotificationPermission } from '../utils/audio';
+import i18n from '../i18n/i18n';
 
 const PomodoroContext = createContext();
 
@@ -436,15 +437,23 @@ export function PomodoroProvider({ children }) {
       if (next) {
         if (timerState.phase === 'focus') {
           playSound(settings.focusSound, settings.soundRepeatCount);
-          playNotification('专注完成！', next.phase === 'longBreak' ? '开始长休息' : '开始短休息', settings.notifications);
+          playNotification(
+            i18n.t('notification.focus_complete'),
+            next.phase === 'longBreak' ? i18n.t('notification.long_break_start') : i18n.t('notification.short_break_start'),
+            settings.notifications
+          );
         } else {
           playSound(settings.breakSound, settings.soundRepeatCount);
-          playNotification('休息结束！', `开始第 ${next.round} 轮专注`, settings.notifications);
+          playNotification(
+            i18n.t('notification.break_end'),
+            i18n.t('notification.focus_round_start', { round: next.round }),
+            settings.notifications
+          );
         }
         dispatch({ type: 'NEXT_PHASE', payload: next });
       } else {
         playSound(settings.focusSound, settings.soundRepeatCount);
-        playNotification('计划完成！', '所有专注时间已完成', settings.notifications);
+        playNotification(i18n.t('notification.plan_complete'), i18n.t('notification.plan_complete_desc'), settings.notifications);
       }
     }
   }, [timerState.status, timerState.timeRemaining, timerState.phase, timerState.currentRound, timerState.scheduleIndex, settings, limitedSchedule]);

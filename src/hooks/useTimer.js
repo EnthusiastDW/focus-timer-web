@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import i18n from '../i18n/i18n';
 
 /**
  * Custom hook for timer functionality
@@ -38,17 +39,20 @@ export function formatDuration(seconds) {
   const hours = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
   
-  if (hours > 0) {
-    return `${hours}小时${mins}分钟`;
+  if (hours > 0 && mins > 0) {
+    return i18n.t('duration.hours_minutes', { hours, minutes: mins });
   }
-  return `${mins}分钟`;
+  if (hours > 0) {
+    return i18n.t('duration.hours_only', { hours });
+  }
+  return i18n.t('duration.minutes_only', { minutes: mins });
 }
 
 export function getPhaseLabel(phase) {
   switch (phase) {
-    case 'focus': return '专注';
-    case 'shortBreak': return '短休息';
-    case 'longBreak': return '长休息';
+    case 'focus': return i18n.t('phase.focus');
+    case 'shortBreak': return i18n.t('phase.short_break');
+    case 'longBreak': return i18n.t('phase.long_break');
     default: return phase;
   }
 }

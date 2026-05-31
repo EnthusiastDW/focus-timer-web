@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Snackbar, Button, Alert } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 
 export default function PWAInstallPrompt() {
+  const { t } = useTranslation();
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
@@ -51,15 +53,15 @@ export default function PWAInstallPrompt() {
           <>
             <Button color="inherit" size="small" onClick={handleInstall}>
               <DownloadIcon sx={{ mr: 0.5, fontSize: 18 }} />
-              安装应用
+              {t('app.install_app')}
             </Button>
             <Button color="inherit" size="small" onClick={handleClose}>
-              稍后
+              {t('app.install_later')}
             </Button>
           </>
         }
       >
-        安装 Focus Timer 到桌面，获得更好的体验
+        {t('app.install_prompt')}
       </Alert>
     </Snackbar>
   );

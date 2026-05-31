@@ -14,6 +14,8 @@ import {
   alpha,
   Chip,
   Tooltip,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
@@ -35,25 +37,28 @@ import FeedbackPage from './components/FeedbackPage';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import { usePomodoroContext } from './contexts/PomodoroContext';
 import { formatTime } from './hooks/useTimer';
+import { useTranslation } from 'react-i18next';
 import useSEO from './hooks/useSEO';
+import i18n from './i18n/i18n';
 
 const drawerWidth = 280;
 
 const menuItems = [
-  { id: 'focus', label: '专注', icon: <TimerOutlinedIcon />, description: '开始番茄钟计时' },
-  { id: 'tasks', label: '任务管理', icon: <AssignmentOutlinedIcon />, description: '管理你的任务' },
-  { id: 'statistics', label: '统计分析', icon: <BarChartOutlinedIcon />, description: '查看专注统计' },
-  { id: 'feedback', label: '反馈', icon: <FeedbackOutlinedIcon />, description: '提交问题和建议' },
+  { id: 'focus', icon: <TimerOutlinedIcon /> },
+  { id: 'tasks', icon: <AssignmentOutlinedIcon /> },
+  { id: 'statistics', icon: <BarChartOutlinedIcon /> },
+  { id: 'feedback', icon: <FeedbackOutlinedIcon /> },
 ];
 
 const phaseConfig = {
-  focus: { icon: <TimerOutlinedIcon />, color: 'primary', label: '专注' },
-  shortBreak: { icon: <CoffeeOutlinedIcon />, color: 'success', label: '短休息' },
-  longBreak: { icon: <SelfImprovementOutlinedIcon />, color: 'secondary', label: '长休息' },
+  focus: { icon: <TimerOutlinedIcon />, color: 'primary', tKey: 'phase.focus' },
+  shortBreak: { icon: <CoffeeOutlinedIcon />, color: 'success', tKey: 'phase.short_break' },
+  longBreak: { icon: <SelfImprovementOutlinedIcon />, color: 'secondary', tKey: 'phase.long_break' },
 };
 
 function TimerIndicator() {
   const { timerState } = usePomodoroContext();
+  const { t } = useTranslation();
   
   if (!timerState.isRunning) return null;
   
@@ -62,7 +67,7 @@ function TimerIndicator() {
   return (
     <Chip
       icon={phase.icon}
-      label={`${phase.label} ${formatTime(timerState.timeRemaining)}`}
+      label={`${t(phase.tKey)} ${formatTime(timerState.timeRemaining)}`}
       color={phase.color}
       size="small"
       sx={{ mr: { xs: 0, sm: 2 } }}
@@ -72,19 +77,19 @@ function TimerIndicator() {
 
 function NotificationToggle() {
   const { settings, updateSettings } = usePomodoroContext();
+  const { t } = useTranslation();
   
   const handleToggle = () => {
     const newNotifications = !settings.notifications;
     updateSettings({ notifications: newNotifications });
     
-    // 如果开启通知且未授权，请求权限
     if (newNotifications && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   };
   
   return (
-    <Tooltip title={settings.notifications ? '关闭桌面通知' : '开启桌面通知'}>
+    <Tooltip title={settings.notifications ? t('app.notification_on') : t('app.notification_off')}>
       <IconButton
         onClick={handleToggle}
         sx={{ 
@@ -94,7 +99,7 @@ function NotificationToggle() {
             bgcolor: alpha('#2563eb', 0.1),
           }
         }}
-        aria-label="桌面通知开关"
+        aria-label={t('app.aria.notification_toggle')}
         size="small"
       >
         {settings.notifications ? <NotificationsIcon /> : <NotificationsOffIcon />}
@@ -104,32 +109,31 @@ function NotificationToggle() {
 }
 
 function App() {
+  const { t } = useTranslation();
   const [currentPage, setCurrentPage] = useState('focus');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  // 定义不同页面的SEO信息
   const pageSEO = {
     focus: {
-      title: 'Focus Timer - 番茄钟专注计时器',
-      description: '使用番茄钟技术提高专注力，管理时间，提升工作效率。支持自由模式和限时模式，提供统计分析和桌面通知功能。'
+      title: 'Focus Timer - ' + t('seo.focus_title_suffix'),
+      description: t('seo.focus_desc')
     },
     tasks: {
-      title: '任务管理 - Focus Timer',
-      description: '创建和管理你的任务，分组整理，跟踪任务进度，关联番茄钟自动记录耗时。'
+      title: t('seo.tasks_title') + ' - Focus Timer',
+      description: t('seo.tasks_desc')
     },
     statistics: {
-      title: '统计分析 - Focus Timer',
-      description: '查看您的专注统计数据，分析工作效率，了解时间分配情况，优化工作流程。'
+      title: t('seo.statistics_title') + ' - Focus Timer',
+      description: t('seo.statistics_desc')
     },
     feedback: {
-      title: '反馈 - Focus Timer',
-      description: '提交您的问题、建议或反馈，帮助我们改进Focus Timer番茄钟应用。'
+      title: t('seo.feedback_title') + ' - Focus Timer',
+      description: t('seo.feedback_desc')
     }
   };
 
-  // 使用SEO Hook动态设置页面标题和描述
   useSEO(pageSEO[currentPage]?.title, pageSEO[currentPage]?.description);
 
   const navigateTo = (page) => {
@@ -170,7 +174,7 @@ function App() {
             edge="start"
             onClick={() => setDrawerOpen(true)}
             sx={{ mr: 1, color: 'text.primary' }}
-            aria-label="菜单"
+            aria-label={t('app.aria.menu')}
           >
             <MenuIcon />
           </IconButton>
@@ -192,14 +196,14 @@ function App() {
             }}
           >
             <TimerOutlinedIcon color="primary" />
-            <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>Focus Timer</Box>
+            <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>{t('app.title')}</Box>
           </Typography>
           <TimerIndicator />
           <NotificationToggle />
           <IconButton
             onClick={() => setHistoryOpen(true)}
             sx={{ color: 'text.secondary', mr: 0.5 }}
-            aria-label="历史记录"
+            aria-label={t('app.aria.history')}
             size="small"
           >
             <HistoryOutlinedIcon />
@@ -207,11 +211,27 @@ function App() {
           <IconButton
             onClick={() => setSettingsOpen(true)}
             sx={{ color: 'text.secondary' }}
-            aria-label="设置"
+            aria-label={t('app.aria.settings')}
             size="small"
           >
             <SettingsOutlinedIcon />
           </IconButton>
+          <Select
+            value={i18n.language}
+            onChange={(e) => i18n.changeLanguage(e.target.value)}
+            size="small"
+            variant="standard"
+            disableUnderline
+            sx={{
+              ml: 0.5,
+              fontSize: '0.8rem',
+              color: 'text.secondary',
+              '& .MuiSelect-select': { py: 0.5, pr: 2 },
+            }}
+          >
+            <MenuItem value="zh-CN">中文</MenuItem>
+            <MenuItem value="en">English</MenuItem>
+          </Select>
         </Toolbar>
       </AppBar>
 
@@ -237,10 +257,10 @@ function App() {
             }}
           >
             <TimerOutlinedIcon sx={{ fontSize: 28 }} />
-            Focus Timer
+            {t('app.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            专注时间管理工具
+            {t('app.subtitle')}
           </Typography>
         </Box>
 
@@ -270,7 +290,7 @@ function App() {
                 {item.icon}
               </ListItemIcon>
               <ListItemText
-                primary={item.label}
+                primary={t(`menu.${item.id}`)}
                 primaryTypographyProps={{
                   fontWeight: currentPage === item.id ? 600 : 400,
                   fontSize: '0.9rem',

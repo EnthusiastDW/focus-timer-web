@@ -24,37 +24,40 @@ import SelfImprovementOutlinedIcon from '@mui/icons-material/SelfImprovementOutl
 import AllInclusiveIcon from '@mui/icons-material/AllInclusive';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import CloseIcon from '@mui/icons-material/Close';
+import { useTranslation } from 'react-i18next';
 import { usePomodoroContext } from '../contexts/PomodoroContext';
 import { useTaskContext } from '../contexts/TaskContext';
 import { formatTime, formatDuration } from '../hooks/useTimer';
 
-const phaseConfig = {
-  focus: {
-    color: '#2563eb',
-    gradient: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
-    icon: <TimerOutlinedIcon />,
-    label: '专注中',
-    titlePrefix: '专注',
-  },
-  shortBreak: {
-    color: '#059669',
-    gradient: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-    icon: <CoffeeOutlinedIcon />,
-    label: '短休息',
-    titlePrefix: '短休息',
-  },
-  longBreak: {
-    color: '#7c3aed',
-    gradient: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)',
-    icon: <SelfImprovementOutlinedIcon />,
-    label: '长休息',
-    titlePrefix: '长休息',
-  },
-};
-
 export default function PomodoroTimer({ onNavigate }) {
+  const { t } = useTranslation();
   const { timerState, settings, startTimer, pauseTimer, resetTimer, skipPhase, setTaskId, totalDailyTime, limitedSchedule, updateSettings, isLocked } = usePomodoroContext();
   const { state: taskState, dispatch } = useTaskContext();
+
+  const phaseConfig = {
+    focus: {
+      color: '#2563eb',
+      gradient: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+      icon: <TimerOutlinedIcon />,
+      label: t('phase.focus_ing'),
+      titlePrefix: t('phase.focus'),
+    },
+    shortBreak: {
+      color: '#059669',
+      gradient: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+      icon: <CoffeeOutlinedIcon />,
+      label: t('phase.short_break'),
+      titlePrefix: t('phase.short_break'),
+    },
+    longBreak: {
+      color: '#7c3aed',
+      gradient: 'linear-gradient(135deg, #7c3aed 0%, #ec4899 100%)',
+      icon: <SelfImprovementOutlinedIcon />,
+      label: t('phase.long_break'),
+      titlePrefix: t('phase.long_break'),
+    },
+  };
+
   const [limitedTimeInput, setLimitedTimeInput] = useState(settings.limitedTime);
   const [taskSearchValue, setTaskSearchValue] = useState('');
   const isSmUp = useMediaQuery((theme) => theme.breakpoints.up('sm'));
@@ -139,7 +142,7 @@ export default function PomodoroTimer({ onNavigate }) {
               }}
             >
               <AllInclusiveIcon sx={{ mr: 0.5, fontSize: 18 }} />
-              <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>自由模式</Box>
+              <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>{t('timer.free_mode')}</Box>
             </ToggleButton>
             <ToggleButton 
               value="limited"
@@ -151,7 +154,7 @@ export default function PomodoroTimer({ onNavigate }) {
               }}
             >
               <ScheduleIcon sx={{ mr: 0.5, fontSize: 18 }} />
-              <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>限时模式</Box>
+              <Box sx={{ display: { xs: 'none', sm: 'inline' } }}>{t('timer.limited_mode')}</Box>
             </ToggleButton>
           </ToggleButtonGroup>
         </Paper>
@@ -165,7 +168,7 @@ export default function PomodoroTimer({ onNavigate }) {
             disabled={isLocked}
             size="small"
             InputProps={{
-              endAdornment: <InputAdornment position="end">分钟</InputAdornment>,
+              endAdornment: <InputAdornment position="end">{t('timer.minutes')}</InputAdornment>,
             }}
             sx={{
               width: 100,
@@ -270,7 +273,7 @@ export default function PomodoroTimer({ onNavigate }) {
           
           {/* 轮次信息 */}
           <Typography variant="body2" sx={{ mt: 1.5, opacity: 0.9 }}>
-            轮次 {timerState.currentRound} / {totalRounds}
+            {t('timer.round_info', { current: timerState.currentRound, total: totalRounds })}
           </Typography>
 
           {/* 当前任务显示 */}
@@ -348,7 +351,7 @@ export default function PomodoroTimer({ onNavigate }) {
             whiteSpace: 'nowrap',
           }}
         >
-          {timerState.isRunning ? '暂停' : timerState.timeRemaining !== phaseTime ? '继续' : '开始'}
+          {timerState.isRunning ? t('timer.pause') : timerState.timeRemaining !== phaseTime ? t('timer.resume') : t('timer.start')}
         </Button>
         {/* 只有在计时进行中、暂停或已经部分完成时才显示跳过按钮 */}
         {(timerState.isRunning || (!timerState.isRunning && timerState.timeRemaining !== phaseTime)) && (
@@ -358,7 +361,7 @@ export default function PomodoroTimer({ onNavigate }) {
             startIcon={<SkipNextIcon />}
             sx={{ borderRadius: 2, textTransform: 'none', whiteSpace: 'nowrap' }}
           >
-            跳过
+            {t('timer.skip')}
           </Button>
         )}
         <Button
@@ -367,7 +370,7 @@ export default function PomodoroTimer({ onNavigate }) {
           startIcon={<RestartAltIcon />}
           sx={{ borderRadius: 2, textTransform: 'none', whiteSpace: 'nowrap' }}
         >
-          重置
+          {t('timer.reset')}
         </Button>
       </Box>
 
@@ -419,8 +422,8 @@ export default function PomodoroTimer({ onNavigate }) {
           renderInput={(params) => (
             <TextField
               {...params}
-              label="搜索或创建任务"
-              placeholder="输入任务名称或从列表中选择"
+              label={t('timer.search_or_create')}
+              placeholder={t('timer.placeholder_task')}
               size="small"
               sx={{
                 width: '100%',
@@ -436,7 +439,7 @@ export default function PomodoroTimer({ onNavigate }) {
                     {taskSearchValue.trim() && (
                       <InputAdornment position="end">
                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                          按回车创建
+                          {t('timer.press_enter')}
                         </Typography>
                       </InputAdornment>
                     )}
@@ -472,14 +475,14 @@ export default function PomodoroTimer({ onNavigate }) {
                   </Typography>
                   {isSelected && (
                     <Typography variant="caption" color="primary" sx={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-                      ✓ 当前
+                      ✓ {t('timer.current')}
                     </Typography>
                   )}
                 </Box>
               </Box>
             );
           }}
-          noOptionsText={taskSearchValue.trim() ? `创建 "${taskSearchValue}"` : '暂无任务'}
+          noOptionsText={taskSearchValue.trim() ? t('timer.create_task', { name: taskSearchValue }) : t('timer.no_tasks')}
           disableClearable={false}
         />
       </Box>
@@ -500,7 +503,7 @@ export default function PomodoroTimer({ onNavigate }) {
         }}
       >
         <Typography variant="body2" color="text.secondary">
-          今日专注时间
+          {t('timer.today_focus')}
         </Typography>
         <Typography variant="h5" sx={{ fontWeight: 600, color: currentPhase.color }}>
           {formatDuration(totalDailyTime || 0)}

@@ -24,11 +24,13 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined';
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined';
 import WatchOutlinedIcon from '@mui/icons-material/WatchOutlined';
+import { useTranslation } from 'react-i18next';
 import { usePomodoroContext } from '../contexts/PomodoroContext';
 import { useTaskContext } from '../contexts/TaskContext';
 import { formatDuration } from '../hooks/useTimer';
 
 export default function StatisticsPage() {
+  const { t } = useTranslation();
   const { history, dailyTaskStats, taskTotalTimes } = usePomodoroContext();
   const { state: taskState } = useTaskContext();
   const [tab, setTab] = useState(0);
@@ -91,7 +93,7 @@ export default function StatisticsPage() {
   return (
     <Container maxWidth="lg" sx={{ py: 2 }}>
       <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
-        统计分析
+        {t('statistics.title')}
       </Typography>
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -109,14 +111,14 @@ export default function StatisticsPage() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <CalendarTodayOutlinedIcon color="primary" />
                 <Typography variant="body2" color="text.secondary">
-                  今日专注
+                  {t('statistics.today_focus')}
                 </Typography>
               </Box>
               <Typography variant="h4" sx={{ fontWeight: 600, color: 'primary.main' }}>
                 {formatDuration(stats.todayFocusTime)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {stats.todaySessions} 条记录
+                {t('statistics.records', { count: stats.todaySessions })}
               </Typography>
             </CardContent>
           </Card>
@@ -135,14 +137,14 @@ export default function StatisticsPage() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <TrendingUpOutlinedIcon sx={{ color: '#059669' }} />
                 <Typography variant="body2" color="text.secondary">
-                  总专注时间
+                  {t('statistics.total_focus')}
                 </Typography>
               </Box>
               <Typography variant="h4" sx={{ fontWeight: 600, color: '#059669' }}>
                 {formatDuration(stats.totalFocusTime)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {stats.totalSessions} 条记录
+                {t('statistics.records', { count: stats.totalSessions })}
               </Typography>
             </CardContent>
           </Card>
@@ -161,14 +163,14 @@ export default function StatisticsPage() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <AssignmentOutlinedIcon sx={{ color: '#7c3aed' }} />
                 <Typography variant="body2" color="text.secondary">
-                  任务数量
+                  {t('statistics.task_count')}
                 </Typography>
               </Box>
               <Typography variant="h4" sx={{ fontWeight: 600, color: '#7c3aed' }}>
                 {taskState.tasks.length}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {taskState.groups.length} 个分组
+                {t('statistics.groups_count', { count: taskState.groups.length })}
               </Typography>
             </CardContent>
           </Card>
@@ -187,16 +189,16 @@ export default function StatisticsPage() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <WatchOutlinedIcon sx={{ color: '#ec4899' }} />
                 <Typography variant="body2" color="text.secondary">
-                  平均每日
+                  {t('statistics.daily_avg')}
                 </Typography>
               </Box>
               <Typography variant="h4" sx={{ fontWeight: 600, color: '#ec4899' }}>
                 {stats.sortedDailyStats.length > 0
                   ? formatDuration(Math.round(stats.totalFocusTime / stats.sortedDailyStats.length))
-                  : '0分钟'}
+                  : formatDuration(0)}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {stats.sortedDailyStats.length} 天记录
+                {t('statistics.days', { count: stats.sortedDailyStats.length })}
               </Typography>
             </CardContent>
           </Card>
@@ -221,10 +223,10 @@ export default function StatisticsPage() {
             px: 2,
           }}
         >
-          <Tab icon={<AssignmentOutlinedIcon />} iconPosition="start" label="今日任务" />
-          <Tab icon={<FolderOutlinedIcon />} iconPosition="start" label="按分组" />
-          <Tab icon={<CalendarTodayOutlinedIcon />} iconPosition="start" label="按时间" />
-          <Tab icon={<TimerOutlinedIcon />} iconPosition="start" label="全部任务" />
+          <Tab icon={<AssignmentOutlinedIcon />} iconPosition="start" label={t('statistics.today_tasks')} />
+          <Tab icon={<FolderOutlinedIcon />} iconPosition="start" label={t('statistics.by_group')} />
+          <Tab icon={<CalendarTodayOutlinedIcon />} iconPosition="start" label={t('statistics.by_date')} />
+          <Tab icon={<TimerOutlinedIcon />} iconPosition="start" label={t('statistics.all_tasks')} />
         </Tabs>
 
         <Box sx={{ p: 3 }}>
@@ -232,10 +234,10 @@ export default function StatisticsPage() {
             <Box>
               <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Typography variant="subtitle2" color="text.secondary">
-                  今日任务专注时间
+                  {t('statistics.today_tasks')}
                 </Typography>
                 <Chip
-                  label={`总计 ${Math.round(stats.todayFocusTime / 60)} 分钟`}
+                  label={t('statistics.total_minutes', { count: Math.round(stats.todayFocusTime / 60) })}
                   color="primary"
                   size="small"
                   sx={{ ml: 'auto' }}
@@ -244,7 +246,7 @@ export default function StatisticsPage() {
               
               {stats.todayTaskStats.length === 0 && stats.todayUnassignedTime === 0 ? (
                 <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-                  今日暂无专注记录
+                  {t('statistics.no_records_today')}
                 </Typography>
               ) : (
                 <Grid container spacing={2}>
@@ -271,7 +273,7 @@ export default function StatisticsPage() {
                               size="small"
                             />
                             <Typography variant="body2" color="text.secondary">
-                              ({Math.round(task.todayTime / 60)}分钟)
+                              ({Math.round(task.todayTime / 60)}{t('timer.minutes')})
                             </Typography>
                           </Box>
                         </CardContent>
@@ -291,7 +293,7 @@ export default function StatisticsPage() {
                       >
                         <CardContent>
                           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1, fontStyle: 'italic' }}>
-                            未分配任务
+                            {t('statistics.unassigned')}
                           </Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <Chip
@@ -301,7 +303,7 @@ export default function StatisticsPage() {
                               size="small"
                             />
                             <Typography variant="body2" color="text.secondary">
-                              ({Math.round(stats.todayUnassignedTime / 60)}分钟)
+                              ({Math.round(stats.todayUnassignedTime / 60)}{t('timer.minutes')})
                             </Typography>
                           </Box>
                         </CardContent>
@@ -342,7 +344,7 @@ export default function StatisticsPage() {
               {stats.groupStats.length === 0 && (
                 <Grid item xs={12}>
                   <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-                    暂无分组数据
+                    {t('statistics.no_group_data')}
                   </Typography>
                 </Grid>
               )}
@@ -354,9 +356,9 @@ export default function StatisticsPage() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>日期</TableCell>
-                    <TableCell align="right">专注时间</TableCell>
-                    <TableCell align="right">记录数</TableCell>
+                    <TableCell>{t('statistics.date')}</TableCell>
+                    <TableCell align="right">{t('statistics.focus_time')}</TableCell>
+                    <TableCell align="right">{t('statistics.records', { count: '' }).replace('0', '')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -373,7 +375,7 @@ export default function StatisticsPage() {
                         <TableCell align="right">
                           <Chip label={formatDuration(time)} size="small" color="primary" />
                         </TableCell>
-                        <TableCell align="right">{dayRecords} 条</TableCell>
+                        <TableCell align="right">{t('statistics.records', { count: dayRecords })}</TableCell>
                       </TableRow>
                     );
                   })}
@@ -381,8 +383,8 @@ export default function StatisticsPage() {
                     <TableRow>
                       <TableCell colSpan={3} align="center">
                         <Typography color="text.secondary" sx={{ py: 4 }}>
-                          暂无数据
-                        </Typography>
+                        {t('statistics.no_data')}
+                      </Typography>
                       </TableCell>
                     </TableRow>
                   )}
@@ -396,9 +398,9 @@ export default function StatisticsPage() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>任务名称</TableCell>
-                    <TableCell align="right">今日专注</TableCell>
-                    <TableCell align="right">总专注时间</TableCell>
+                    <TableCell>{t('statistics.task_name')}</TableCell>
+                    <TableCell align="right">{t('statistics.today_time')}</TableCell>
+                    <TableCell align="right">{t('statistics.total_time')}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -428,7 +430,7 @@ export default function StatisticsPage() {
                     <TableRow>
                       <TableCell colSpan={3} align="center">
                         <Typography color="text.secondary" sx={{ py: 4 }}>
-                          暂无任务
+                          {t('statistics.no_data')}
                         </Typography>
                       </TableCell>
                     </TableRow>

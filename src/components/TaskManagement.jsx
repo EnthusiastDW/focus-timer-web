@@ -31,11 +31,13 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import LinkOutlinedIcon from '@mui/icons-material/LinkOutlined';
 import NotesOutlinedIcon from '@mui/icons-material/NotesOutlined';
+import { useTranslation } from 'react-i18next';
 import { useTaskContext } from '../contexts/TaskContext';
 import { usePomodoroContext } from '../contexts/PomodoroContext';
 import { formatDuration } from '../hooks/useTimer';
 
 export default function TaskManagement() {
+  const { t } = useTranslation();
   const { state, dispatch } = useTaskContext();
   const { taskTotalTimes } = usePomodoroContext();
   const [openDialog, setOpenDialog] = useState(false);
@@ -122,10 +124,10 @@ export default function TaskManagement() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h5" sx={{ fontWeight: 600 }}>
-            任务管理
+            {t('tasks.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            总耗时: {formatDuration(totalTime)}
+            {t('tasks.total_time', { time: formatDuration(totalTime) })}
           </Typography>
         </Box>
         <Button
@@ -134,7 +136,7 @@ export default function TaskManagement() {
           onClick={() => setNewGroupDialog(true)}
           sx={{ borderRadius: 2, textTransform: 'none' }}
         >
-          新建分组
+          {t('tasks.new_group')}
         </Button>
       </Box>
 
@@ -168,7 +170,7 @@ export default function TaskManagement() {
                 {group.name}
               </Typography>
               <Chip
-                label={`${group.tasks.length} 个任务`}
+                label={t('tasks.tasks_count', { count: group.tasks.length })}
                 size="small"
                 sx={{ ml: 1 }}
               />
@@ -201,7 +203,7 @@ export default function TaskManagement() {
                   color="text.secondary"
                   sx={{ textAlign: 'center', py: 3 }}
                 >
-                  暂无任务，点击右下角按钮添加
+                  {t('tasks.no_tasks')}
                 </Typography>
               ) : (
                 <Grid container spacing={2}>
@@ -278,7 +280,7 @@ export default function TaskManagement() {
                             startIcon={<EditIcon />}
                             onClick={() => handleOpenDialog(task)}
                           >
-                            编辑
+                            {t('tasks.edit')}
                           </Button>
                           <Button
                             size="small"
@@ -286,7 +288,7 @@ export default function TaskManagement() {
                             startIcon={<DeleteIcon />}
                             onClick={() => handleDeleteTask(task.id)}
                           >
-                            删除
+                            {t('tasks.delete')}
                           </Button>
                         </CardActions>
                       </Card>
@@ -299,7 +301,7 @@ export default function TaskManagement() {
         </Card>
       ))}
 
-      <Tooltip title="添加任务">
+      <Tooltip title={t('tasks.fab_tooltip')}>
         <Fab
           color="primary"
           sx={{
@@ -314,12 +316,12 @@ export default function TaskManagement() {
       </Tooltip>
 
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>{editingTask ? '编辑任务' : '添加任务'}</DialogTitle>
+        <DialogTitle>{editingTask ? t('tasks.edit_task') : t('tasks.add_task')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="任务名称"
+            label={t('tasks.task_name')}
             fullWidth
             value={taskForm.name}
             onChange={(e) => setTaskForm({ ...taskForm, name: e.target.value })}
@@ -327,7 +329,7 @@ export default function TaskManagement() {
           />
           <TextField
             margin="dense"
-            label="链接（可选）"
+            label={t('tasks.link')}
             fullWidth
             value={taskForm.link}
             onChange={(e) => setTaskForm({ ...taskForm, link: e.target.value })}
@@ -338,7 +340,7 @@ export default function TaskManagement() {
           />
           <TextField
             margin="dense"
-            label="备注（可选）"
+            label={t('tasks.notes')}
             fullWidth
             multiline
             rows={3}
@@ -347,10 +349,10 @@ export default function TaskManagement() {
             sx={{ mb: 2 }}
           />
           <FormControl fullWidth>
-            <InputLabel>分组</InputLabel>
+            <InputLabel>{t('tasks.group')}</InputLabel>
             <Select
               value={taskForm.groupId}
-              label="分组"
+              label={t('tasks.group')}
               onChange={(e) => setTaskForm({ ...taskForm, groupId: e.target.value })}
             >
               {state.groups.map(group => (
@@ -362,29 +364,29 @@ export default function TaskManagement() {
           </FormControl>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handleCloseDialog}>取消</Button>
+          <Button onClick={handleCloseDialog}>{t('tasks.cancel')}</Button>
           <Button onClick={handleSaveTask} variant="contained" sx={{ borderRadius: 2 }}>
-            {editingTask ? '保存' : '添加'}
+            {editingTask ? t('tasks.save') : t('tasks.add')}
           </Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={newGroupDialog} onClose={() => setNewGroupDialog(false)}>
-        <DialogTitle>新建分组</DialogTitle>
+        <DialogTitle>{t('tasks.new_group_title')}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="分组名称"
+            label={t('tasks.group_name')}
             fullWidth
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setNewGroupDialog(false)}>取消</Button>
+          <Button onClick={() => setNewGroupDialog(false)}>{t('tasks.cancel')}</Button>
           <Button onClick={handleAddGroup} variant="contained" sx={{ borderRadius: 2 }}>
-            创建
+            {t('tasks.create')}
           </Button>
         </DialogActions>
       </Dialog>

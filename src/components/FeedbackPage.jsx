@@ -9,6 +9,7 @@ import {
   Box,
 } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import { useTranslation } from 'react-i18next';
 import FeedbackForm from './FeedbackForm';
 import FeedbackList from './FeedbackList';
 
@@ -17,6 +18,7 @@ import FeedbackList from './FeedbackList';
 const GITHUB_ISSUES_URL = 'https://github.com/EnthusiastDW/feedback/issues?q=is%3Aissue+label%3A%22project%3Afocus-timer%22';
 
 export default function FeedbackPage() {
+  const { t } = useTranslation();
   const [tab, setTab] = useState(0);
   const [editData, setEditData] = useState(null);
 
@@ -37,7 +39,7 @@ export default function FeedbackPage() {
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4">
-          反馈
+          {t('feedback.title')}
         </Typography>
         <Button
           variant="outlined"
@@ -45,14 +47,14 @@ export default function FeedbackPage() {
           onClick={() => window.open(GITHUB_ISSUES_URL, '_blank')}
           sx={{ textTransform: 'none' }}
         >
-          查看 GitHub Issues
+          {t('feedback.view_github')}
         </Button>
       </Box>
 
       <Paper sx={{ mb: 3 }}>
         <Tabs value={tab} onChange={handleTabChange} centered>
-          <Tab label="提交反馈" />
-          <Tab label="查看反馈" />
+          <Tab label={t('feedback.submit_tab')} />
+          <Tab label={t('feedback.view_tab')} />
         </Tabs>
       </Paper>
 
@@ -60,7 +62,7 @@ export default function FeedbackPage() {
         <>
           {editData && (
             <Typography variant="h6" gutterBottom color="primary">
-              编辑反馈
+              {t('feedback.edit_feedback')}
             </Typography>
           )}
           <FeedbackForm 

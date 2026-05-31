@@ -24,11 +24,13 @@ import CalendarTodayOutlinedIcon from '@mui/icons-material/CalendarTodayOutlined
 import AssignmentOutlinedIcon from '@mui/icons-material/AssignmentOutlined';
 import TimerOutlinedIcon from '@mui/icons-material/TimerOutlined';
 import EditIcon from '@mui/icons-material/Edit';
+import { useTranslation } from 'react-i18next';
 import { usePomodoroContext } from '../contexts/PomodoroContext';
 import { useTaskContext } from '../contexts/TaskContext';
 import { formatDuration } from '../hooks/useTimer';
 
 export default function HistoryList({ open, onClose }) {
+  const { t } = useTranslation();
   const { history, taskTotalTimes } = usePomodoroContext();
   const { state: taskState } = useTaskContext();
   const [editingId, setEditingId] = useState(null);
@@ -55,10 +57,9 @@ export default function HistoryList({ open, onClose }) {
   }, [history]);
 
   const getTaskName = (taskId) => {
-    // taskId 现在是 'unassigned' 或具体的任务ID
-    if (taskId === 'unassigned') return '未分配任务';
+    if (taskId === 'unassigned') return t('statistics.unassigned');
     const task = taskState.tasks.find(t => t.id === taskId);
-    return task ? task.name : '未知任务';
+    return task ? task.name : t('statistics.unassigned');
   };
 
   const handleTaskChange = () => {
@@ -71,11 +72,11 @@ export default function HistoryList({ open, onClose }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>专注历史</DialogTitle>
+      <DialogTitle>{t('history.title')}</DialogTitle>
       <DialogContent>
         {history.length === 0 ? (
           <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
-            暂无历史记录
+            {t('history.no_history')}
           </Typography>
         ) : (
           <Box>
@@ -101,8 +102,8 @@ export default function HistoryList({ open, onClose }) {
                     <Table size="small">
                       <TableHead>
                         <TableRow>
-                          <TableCell>任务</TableCell>
-                          <TableCell align="right">专注时长</TableCell>
+                          <TableCell>{t('history.task')}</TableCell>
+                          <TableCell align="right">{t('history.focus_duration')}</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -134,7 +135,7 @@ export default function HistoryList({ open, onClose }) {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>关闭</Button>
+        <Button onClick={onClose}>{t('history.close')}</Button>
       </DialogActions>
     </Dialog>
   );

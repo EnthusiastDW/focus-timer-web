@@ -6,6 +6,7 @@ import { PomodoroProvider } from './contexts/PomodoroContext';
 import { TaskProvider } from './contexts/TaskContext';
 import App from './App';
 import { initTabSafeTimers } from '@vorthain/tab-safe-timers';
+import './i18n/i18n';
 
 // Initialize tab-safe timers to ensure accurate timing when tabs are in background
 try {

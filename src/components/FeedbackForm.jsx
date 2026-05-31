@@ -9,10 +9,12 @@ import {
   TextField,
   Alert,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { saveFeedback, FEEDBACK_TYPES, updateFeedback } from '../utils/feedback';
 import { submitToCloudflare } from '../utils/cloudflareFeedback';
 
 export default function FeedbackForm({ onSubmit, editData }) {
+  const { t } = useTranslation();
   const [type, setType] = useState(editData?.type || FEEDBACK_TYPES.BUG);
   const [title, setTitle] = useState(editData?.title || '');
   const [description, setDescription] = useState(editData?.description || '');
@@ -81,7 +83,7 @@ export default function FeedbackForm({ onSubmit, editData }) {
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
       console.error('操作失败:', err);
-      setError(err.message || '操作失败，请稍后重试');
+      setError(err.message || t('feedback.operation_failed'));
     } finally {
       setLoading(false);
     }
@@ -98,7 +100,7 @@ export default function FeedbackForm({ onSubmit, editData }) {
     <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
       {success && (
         <Alert severity="success" sx={{ mb: 2 }}>
-          {editData ? '更新成功！' : '操作成功！'}
+          {editData ? t('feedback.update_success') : t('feedback.operation_success')}
         </Alert>
       )}
 
@@ -109,23 +111,23 @@ export default function FeedbackForm({ onSubmit, editData }) {
       )}
 
       <FormControl fullWidth sx={{ mb: 2 }}>
-        <InputLabel>反馈类型</InputLabel>
+        <InputLabel>{t('feedback.type_label')}</InputLabel>
         <Select
           value={type}
-          label="反馈类型"
+          label={t('feedback.type_label')}
           onChange={(e) => setType(e.target.value)}
           data-testid="feedback-type-select"
           disabled={loading}
         >
-          <MenuItem value={FEEDBACK_TYPES.BUG}>问题报告</MenuItem>
-          <MenuItem value={FEEDBACK_TYPES.FEATURE}>功能建议</MenuItem>
-          <MenuItem value={FEEDBACK_TYPES.OTHER}>其他</MenuItem>
+          <MenuItem value={FEEDBACK_TYPES.BUG}>{t('feedback.bug')}</MenuItem>
+          <MenuItem value={FEEDBACK_TYPES.FEATURE}>{t('feedback.feature')}</MenuItem>
+          <MenuItem value={FEEDBACK_TYPES.OTHER}>{t('feedback.other')}</MenuItem>
         </Select>
       </FormControl>
 
       <TextField
         fullWidth
-        label="标题"
+        label={t('feedback.title_field')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
@@ -136,7 +138,7 @@ export default function FeedbackForm({ onSubmit, editData }) {
 
       <TextField
         fullWidth
-        label="详细描述"
+        label={t('feedback.description')}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         required
@@ -149,7 +151,7 @@ export default function FeedbackForm({ onSubmit, editData }) {
 
       <TextField
         fullWidth
-        label="邮箱（可选）"
+        label={t('feedback.email')}
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         type="email"
@@ -166,7 +168,7 @@ export default function FeedbackForm({ onSubmit, editData }) {
           sx={{ flex: 1 }}
           data-testid="save-draft-btn"
         >
-          {loading ? '保存中...' : '保存草稿'}
+          {loading ? t('feedback.saving') : t('feedback.save_draft')}
         </Button>
         <Button 
           variant="contained" 
@@ -175,7 +177,7 @@ export default function FeedbackForm({ onSubmit, editData }) {
           sx={{ flex: 1 }}
           data-testid="submit-to-github-btn"
         >
-          {loading ? '提交中...' : '提交'}
+          {loading ? t('feedback.submitting') : t('feedback.submit')}
         </Button>
       </Box>
     </Box>
